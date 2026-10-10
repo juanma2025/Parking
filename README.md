@@ -1,16 +1,32 @@
-# parking_app
+# Parking App
 
-A new Flutter project.
+Plataforma de parqueaderos.
 
-## Getting Started
+## Configuración y Ejecución
 
-This project is a starting point for a Flutter application.
+1. Crea el archivo `env.json` basándote en `env.example.json` y coloca tus credenciales:
+```json
+{
+  "SUPABASE_URL": "...",
+  "SUPABASE_ANON_KEY": "..."
+}
+```
 
-A few resources to get you started if this is your first Flutter project:
+2. Ejecuta la aplicación usando el archivo de configuración:
+```bash
+flutter run --dart-define-from-file=env.json
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Pruebas
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Para ejecutar las pruebas:
+```bash
+flutter test
+```
+
+## Análisis Estático
+
+Para verificar el código:
+```bash
+flutter analyze
+```
