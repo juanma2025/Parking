@@ -14,7 +14,7 @@ class GetVehiclesUseCase {
   final VehicleRepository repository;
   GetVehiclesUseCase(this.repository);
 
-  Future<List<Vehicle>> execute(String userId) {
+  Future<List<Vehicle>> execute(String profileId) {
     throw UnimplementedError();
   }
 }
@@ -28,33 +28,29 @@ class GetParkingLotsUseCase {
   }
 }
 
+class GetSpacesUseCase {
+  final ParkingSpaceRepository repository;
+  GetSpacesUseCase(this.repository);
+
+  Future<List<ParkingSpace>> execute(String parkingLotId) {
+    throw UnimplementedError();
+  }
+}
+
+class GetSchedulesUseCase {
+  final ParkingScheduleRepository repository;
+  GetSchedulesUseCase(this.repository);
+
+  Future<List<ParkingSchedule>> execute(String parkingLotId) {
+    throw UnimplementedError();
+  }
+}
+
 class CreateReservationUseCase {
   final ReservationRepository repository;
   CreateReservationUseCase(this.repository);
 
   Future<void> execute(Reservation reservation) {
-    throw UnimplementedError();
-  }
-}
-
-class GetReservationsUseCase {
-  final ReservationRepository repository;
-  GetReservationsUseCase(this.repository);
-
-  Future<List<Reservation>> execute(String userId) {
-    throw UnimplementedError();
-  }
-}
-
-class GetParkingLotDetailsUseCase {
-  final ParkingLotRepository lotRepository;
-  final ParkingSpaceRepository spaceRepository;
-  final ParkingScheduleRepository scheduleRepository;
-
-  GetParkingLotDetailsUseCase(this.lotRepository, this.spaceRepository, this.scheduleRepository);
-
-  Future<Map<String, dynamic>> execute(String parkingLotId) {
-    // This would fetch lot, spaces and schedules and return them combined
     throw UnimplementedError();
   }
 }
