@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Parking (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define-from-file=env.json",
+        "-d",
+        "chrome"
+      ]
+    },
+    {
+      "name": "Parking (Android/Device)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define-from-file=env.json"
+      ]
+    }
+  ]
+}

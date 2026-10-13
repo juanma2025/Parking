@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:parking_app/core/router/app_router.dart';
 import 'package:parking_app/domain/entities/user_role.dart';
 import 'package:parking_app/presentation/auth/auth_providers.dart';
+import 'package:parking_app/presentation/auth/login_screen.dart';
+import 'package:parking_app/presentation/home/home_screen.dart';
 
 void main() {
   testWidgets('Router redirects guest to login', (WidgetTester tester) async {
@@ -25,7 +27,7 @@ void main() {
     );
     
     await tester.pumpAndSettle();
-    expect(find.text('Pantalla: Login'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
   
   testWidgets('Router redirects vehicleOwner to home', (WidgetTester tester) async {
@@ -47,6 +49,6 @@ void main() {
     );
     
     await tester.pumpAndSettle();
-    expect(find.text('Pantalla: Inicio'), findsOneWidget);
+    expect(find.byType(HomeScreen), findsOneWidget);
   });
 }

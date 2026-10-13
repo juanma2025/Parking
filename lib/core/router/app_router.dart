@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/user_role.dart';
 import '../../presentation/auth/auth_providers.dart';
-import '../../presentation/shared/placeholder_screens.dart';
+import '../../presentation/auth/login_screen.dart';
+import '../../presentation/auth/register_screen.dart';
+import '../../presentation/home/home_screen.dart';
+import '../../presentation/shared/placeholder_screens.dart' hide LoginScreen, RegisterScreen, HomeScreen;
 import '../../presentation/shared/scaffold_with_nav_bar.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -71,6 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/my-reservations', builder: (context, state) => const MyReservationsScreen()),
           GoRoute(path: '/vehicles', builder: (context, state) => const VehiclesScreen()),
           GoRoute(path: '/parking-detail/:id', builder: (context, state) => const ParkingDetailScreen()),
+          GoRoute(path: '/parking/:id', builder: (context, state) => const ParkingDetailScreen()),
           GoRoute(path: '/reserve/:id', builder: (context, state) => const ReserveScreen()),
           GoRoute(path: '/confirmation', builder: (context, state) => const ConfirmationScreen()),
 
