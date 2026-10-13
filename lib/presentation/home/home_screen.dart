@@ -5,7 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/motion_utils.dart';
+import '../../domain/entities/user_role.dart';
+import '../auth/auth_providers.dart';
 import '../shared/app_card.dart';
+import '../shared/app_drawer.dart';
 import '../shared/app_map.dart';
 import '../shared/avatar_button.dart';
 import '../shared/section_label.dart';
@@ -74,6 +77,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadInitialData,
@@ -84,7 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Top App Bar
+                // 1. Top App Bar with Drawer opener
                 MotionUtils.staggerEntrance(
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -96,13 +100,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           color: AppColors.white,
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: IconButton(
-                          icon: const Icon(Icons.menu_rounded, color: AppColors.darkCard),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Menú principal')),
-                            );
-                          },
+                        child: Builder(
+                          builder: (scaffoldContext) => IconButton(
+                            icon: const Icon(Icons.menu_rounded, color: AppColors.darkCard),
+                            onPressed: () {
+                              Scaffold.of(scaffoldContext).openDrawer();
+                            },
+                          ),
                         ),
                       ),
                       Text(
@@ -116,14 +120,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   index: 0,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
-                // 2. Greeting & Title
+                // 2. Greeting & Title + Quick Auth Action Pills
                 MotionUtils.staggerEntrance(
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SectionLabel('BIENVENIDO, $_userName'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          SectionLabel('BIENVENIDO, $_userName'),
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
+                                  context.go('/login');
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.darkCard,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.login_rounded, size: 12, color: AppColors.secondary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Iniciar sesión',
+                                        style: AppTypography.caption.copyWith(
+                                          color: AppColors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 10.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () {
+                                  ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
+                                  context.go('/register');
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.person_add_rounded, size: 12, color: AppColors.darkCard),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Registro',
+                                        style: AppTypography.caption.copyWith(
+                                          color: AppColors.darkCard,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 10.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       const TwoToneTitle(
                         text: 'Encuentra tu ',
@@ -133,7 +203,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   index: 1,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
                 // 3. Pill Search Bar
                 MotionUtils.staggerEntrance(

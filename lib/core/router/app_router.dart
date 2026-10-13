@@ -6,7 +6,7 @@ import '../../presentation/auth/auth_providers.dart';
 import '../../presentation/auth/login_screen.dart';
 import '../../presentation/auth/register_screen.dart';
 import '../../presentation/home/home_screen.dart';
-import '../../presentation/shared/placeholder_screens.dart' hide LoginScreen, RegisterScreen, HomeScreen;
+import '../../presentation/shared/placeholder_screens.dart';
 import '../../presentation/shared/scaffold_with_nav_bar.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');

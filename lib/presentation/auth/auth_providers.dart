@@ -1,7 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/user_role.dart';
 
-// STUB: Change this value to test different roles
+class UserRoleNotifier extends Notifier<UserRole> {
+  @override
+  UserRole build() => UserRole.vehicleOwner;
+
+  void setRole(UserRole role) {
+    state = role;
+  }
+}
+
+final userRoleStateProvider = NotifierProvider<UserRoleNotifier, UserRole>(
+  UserRoleNotifier.new,
+);
+
 final currentUserRoleProvider = Provider<UserRole>((ref) {
-  return UserRole.vehicleOwner; 
+  return ref.watch(userRoleStateProvider);
 });

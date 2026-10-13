@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../domain/entities/user_role.dart';
+import 'auth_providers.dart';
 import '../shared/app_text_field.dart';
 import '../shared/pill_button.dart';
 import '../shared/section_label.dart';
@@ -51,6 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         password: password,
       );
       if (mounted) {
+        ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
         context.go('/home');
       }
     } on AuthException catch (e) {
@@ -176,10 +179,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 GestureDetector(
                   onTap: () => context.go('/register'),
                   child: Text(
-                    'Crear cuenta',
+                    '¿No tienes cuenta? Crear cuenta',
                     style: AppTypography.bodyBold.copyWith(
                       decoration: TextDecoration.underline,
                       color: AppColors.darkCard,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Fast Demo Access Button
+                GestureDetector(
+                  onTap: () {
+                    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+                    context.go('/home');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withAlpha(60),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primary.withAlpha(80)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.darkCard),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Explorar como Conductor (Demo)',
+                          style: AppTypography.caption.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.darkCard,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
