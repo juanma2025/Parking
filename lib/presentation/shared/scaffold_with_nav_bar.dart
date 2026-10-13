@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/user_role.dart';
 import '../auth/auth_providers.dart';
+import 'bottom_bar5.dart';
 
 class ScaffoldWithNavBar extends ConsumerWidget {
   final Widget child;
@@ -13,6 +14,7 @@ class ScaffoldWithNavBar extends ConsumerWidget {
     final role = ref.watch(currentUserRoleProvider);
 
     return Scaffold(
+      extendBody: true,
       body: child,
       bottomNavigationBar: _buildBottomBar(context, role),
     );
@@ -20,41 +22,96 @@ class ScaffoldWithNavBar extends ConsumerWidget {
 
   Widget _buildBottomBar(BuildContext context, UserRole role) {
     if (role == UserRole.admin) {
-      return NavigationBar(
-        selectedIndex: _calculateSelectedIndexAdmin(context),
-        onDestinationSelected: (index) => _onItemTappedAdmin(index, context),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.admin_panel_settings), label: 'Panel'),
-          NavigationDestination(icon: Icon(Icons.payment), label: 'Pagos'),
-          NavigationDestination(icon: Icon(Icons.notifications), label: 'Alertas'),
+      return BottomBar5(
+        currentIndex: _calculateSelectedIndexAdmin(context),
+        onTap: (index) => _onItemTappedAdmin(index, context),
+        hasCenterAction: false,
+        items: const [
+          BottomBarItemData(
+            icon: Icons.admin_panel_settings_outlined,
+            activeIcon: Icons.admin_panel_settings_rounded,
+            label: 'Panel',
+          ),
+          BottomBarItemData(
+            icon: Icons.account_balance_wallet_outlined,
+            activeIcon: Icons.account_balance_wallet_rounded,
+            label: 'Pagos',
+          ),
+          BottomBarItemData(
+            icon: Icons.notifications_none_rounded,
+            activeIcon: Icons.notifications_rounded,
+            label: 'Alertas',
+          ),
         ],
       );
     }
 
     if (role == UserRole.parkingOwner) {
-      return NavigationBar(
-        selectedIndex: _calculateSelectedIndexParkingOwner(context),
-        onDestinationSelected: (index) => _onItemTappedParkingOwner(index, context),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Resumen'),
-          NavigationDestination(icon: Icon(Icons.local_parking), label: 'Espacios'),
-          NavigationDestination(icon: Icon(Icons.add_circle), label: '+'),
-          NavigationDestination(icon: Icon(Icons.book_online), label: 'Reservas'),
-          NavigationDestination(icon: Icon(Icons.notifications), label: 'Alertas'),
+      return BottomBar5(
+        currentIndex: _calculateSelectedIndexParkingOwner(context),
+        onTap: (index) => _onItemTappedParkingOwner(index, context),
+        onCenterAction: () => context.go('/add'),
+        items: const [
+          BottomBarItemData(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard_rounded,
+            label: 'Resumen',
+          ),
+          BottomBarItemData(
+            icon: Icons.local_parking_outlined,
+            activeIcon: Icons.local_parking_rounded,
+            label: 'Espacios',
+          ),
+          BottomBarItemData(
+            icon: Icons.add_rounded,
+            activeIcon: Icons.add_rounded,
+            label: '+',
+          ),
+          BottomBarItemData(
+            icon: Icons.calendar_today_outlined,
+            activeIcon: Icons.calendar_today_rounded,
+            label: 'Reservas',
+          ),
+          BottomBarItemData(
+            icon: Icons.notifications_none_rounded,
+            activeIcon: Icons.notifications_rounded,
+            label: 'Alertas',
+          ),
         ],
       );
     }
 
     // Default to Vehicle Owner
-    return NavigationBar(
-      selectedIndex: _calculateSelectedIndexVehicleOwner(context),
-      onDestinationSelected: (index) => _onItemTappedVehicleOwner(index, context),
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home), label: 'Inicio'),
-        NavigationDestination(icon: Icon(Icons.book), label: 'Reservas'),
-        NavigationDestination(icon: Icon(Icons.add_circle), label: '+'),
-        NavigationDestination(icon: Icon(Icons.payment), label: 'Pagos'),
-        NavigationDestination(icon: Icon(Icons.notifications), label: 'Alertas'),
+    return BottomBar5(
+      currentIndex: _calculateSelectedIndexVehicleOwner(context),
+      onTap: (index) => _onItemTappedVehicleOwner(index, context),
+      onCenterAction: () => context.go('/add'),
+      items: const [
+        BottomBarItemData(
+          icon: Icons.home_outlined,
+          activeIcon: Icons.home_rounded,
+          label: 'Inicio',
+        ),
+        BottomBarItemData(
+          icon: Icons.calendar_today_outlined,
+          activeIcon: Icons.calendar_today_rounded,
+          label: 'Reservas',
+        ),
+        BottomBarItemData(
+          icon: Icons.add_rounded,
+          activeIcon: Icons.add_rounded,
+          label: '+',
+        ),
+        BottomBarItemData(
+          icon: Icons.account_balance_wallet_outlined,
+          activeIcon: Icons.account_balance_wallet_rounded,
+          label: 'Pagos',
+        ),
+        BottomBarItemData(
+          icon: Icons.notifications_none_rounded,
+          activeIcon: Icons.notifications_rounded,
+          label: 'Alertas',
+        ),
       ],
     );
   }

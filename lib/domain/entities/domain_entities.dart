@@ -1,31 +1,5 @@
-enum UserRole {
-  vehicleOwner,
-  parkingOwner,
-  admin;
-
-  static UserRole fromString(String? role) {
-    switch (role) {
-      case 'parking_owner':
-        return UserRole.parkingOwner;
-      case 'admin':
-        return UserRole.admin;
-      case 'vehicle_owner':
-      default:
-        return UserRole.vehicleOwner;
-    }
-  }
-
-  String toDbValue() {
-    switch (this) {
-      case UserRole.parkingOwner:
-        return 'parking_owner';
-      case UserRole.admin:
-        return 'admin';
-      case UserRole.vehicleOwner:
-        return 'vehicle_owner';
-    }
-  }
-}
+export 'user_role.dart';
+import 'user_role.dart';
 
 enum ParkingSpaceStatus {
   available,
