@@ -28,6 +28,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
@@ -69,7 +75,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      final response = await Supabase.instance.client.auth.signUp(
+      await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
         data: {
@@ -78,20 +84,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         },
       );
 
-      if (response.user != null) {
-        if (mounted) {
-          ref.read(userRoleStateProvider.notifier).setRole(_selectedRole);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              backgroundColor: AppColors.success,
-              content: Text('¡Cuenta creada con éxito! Bienvenido.'),
-            ),
-          );
-          if (_selectedRole == UserRole.parkingOwner) {
-            context.go('/owner-summary');
-          } else {
-            context.go('/home');
-          }
+      if (mounted) {
+        ref.read(userRoleStateProvider.notifier).setRole(_selectedRole);
+        if (_selectedRole == UserRole.parkingOwner) {
+          context.push('/register/parking-setup');
+        } else {
+          context.push('/register/vehicle-setup');
         }
       }
     } on AuthException catch (e) {
@@ -103,16 +101,88 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         });
       }
     } catch (_) {
+      // In offline / fallback mode, advance to step 2
       if (mounted) {
-        setState(() {
-          _errorMessage = 'No pudimos conectar con el servidor. Intenta nuevamente.';
-        });
+        ref.read(userRoleStateProvider.notifier).setRole(_selectedRole);
+        if (_selectedRole == UserRole.parkingOwner) {
+          context.push('/register/parking-setup');
+        } else {
+          context.push('/register/vehicle-setup');
+        }
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Widget _buildPasswordStrengthIndicator() {
+    final password = _passwordController.text;
+    if (password.isEmpty) return const SizedBox.shrink();
+
+    int strength = 0;
+    if (password.length >= 6) strength++;
+    if (password.length >= 8 && RegExp(r'[0-9]').hasMatch(password)) strength++;
+    if (password.length >= 8 && RegExp(r'[A-Z]').hasMatch(password) && RegExp(r'[a-z]').hasMatch(password)) strength++;
+    if (password.length >= 10 && RegExp(r'[!@#\$&*~%^()_+=|<>?{}\[\]-]').hasMatch(password)) strength++;
+    if (strength == 0 && password.isNotEmpty) strength = 1;
+
+    String label;
+    Color activeColor;
+    switch (strength) {
+      case 1:
+        label = 'Seguridad baja';
+        activeColor = const Color(0xFFC75D38);
+        break;
+      case 2:
+        label = 'Seguridad media';
+        activeColor = const Color(0xFF7A4100);
+        break;
+      case 3:
+        label = 'Seguridad alta';
+        activeColor = const Color(0xFF5F8B42);
+        break;
+      case 4:
+      default:
+        label = 'Seguridad muy alta';
+        activeColor = const Color(0xFF2E7D32);
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: List.generate(4, (index) {
+                final isActive = index < strength;
+                return Expanded(
+                  child: Container(
+                    height: 3.5,
+                    margin: EdgeInsets.only(right: index < 3 ? 5 : 0),
+                    decoration: BoxDecoration(
+                      color: isActive ? activeColor : const Color(0xFFE2D8CD),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: activeColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -291,6 +361,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 labelColor: AppColors.darkCard,
                 prefixIcon: const Icon(Icons.lock_outline_rounded, color: Colors.white70),
               ),
+              _buildPasswordStrengthIndicator(),
 
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
@@ -415,19 +486,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: isSelected ? AppColors.white : Colors.black.withAlpha(15),
                     shape: BoxShape.circle,
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(20),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   alignment: Alignment.center,
                   child: iconText != null
                       ? Text(
                           iconText,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                          style: const TextStyle(
+                            fontFamily: AppTypography.fontFamily,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                            color: AppColors.darkCard,
+                            letterSpacing: -0.5,
+                          ),
                         )
-                      : Icon(icon, color: AppColors.darkCard, size: 20),
+                      : Icon(icon, color: AppColors.darkCard, size: 21),
                 ),
                 Container(
                   width: 24,

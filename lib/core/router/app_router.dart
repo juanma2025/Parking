@@ -5,6 +5,8 @@ import '../../domain/entities/user_role.dart';
 import '../../presentation/auth/auth_providers.dart';
 import '../../presentation/auth/login_screen.dart';
 import '../../presentation/auth/register_screen.dart';
+import '../../presentation/auth/vehicle_setup_screen.dart';
+import '../../presentation/auth/parking_setup_screen.dart';
 import '../../presentation/home/home_screen.dart';
 import '../../presentation/shared/placeholder_screens.dart';
 import '../../presentation/shared/scaffold_with_nav_bar.dart';
@@ -21,6 +23,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isAuthRoute = state.uri.path == '/login' || 
                           state.uri.path == '/register' || 
+                          state.uri.path.startsWith('/register/') ||
                           state.uri.path == '/forgot-password';
 
       final isPublicBrowseRoute = state.uri.path == '/home' || 
@@ -33,8 +36,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // If authenticated and trying to access auth routes, redirect to home
+      // If authenticated and trying to access auth routes, redirect to home (except during setup)
       if (isAuthRoute) {
+        if (state.uri.path.startsWith('/register/')) {
+          return null;
+        }
         if (role == UserRole.vehicleOwner) return '/home';
         if (role == UserRole.parkingOwner) return '/owner-summary';
         if (role == UserRole.admin) return '/admin';
@@ -56,6 +62,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/register/vehicle-setup',
+        builder: (context, state) => const VehicleSetupScreen(),
+      ),
+      GoRoute(
+        path: '/register/parking-setup',
+        builder: (context, state) => const ParkingSetupScreen(),
       ),
       GoRoute(
         path: '/forgot-password',
