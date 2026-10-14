@@ -127,11 +127,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 6,
                         children: [
                           SectionLabel('BIENVENIDO, $_userName'),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               GestureDetector(
                                 onTap: () {
@@ -139,22 +143,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   context.go('/login');
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: AppColors.darkCard,
                                     borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: Colors.white24, width: 0.8),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.login_rounded, size: 12, color: AppColors.secondary),
+                                      const Icon(Icons.login_rounded, size: 11, color: AppColors.secondary),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Iniciar sesión',
                                         style: AppTypography.caption.copyWith(
                                           color: AppColors.white,
                                           fontWeight: FontWeight.w600,
-                                          fontSize: 10.5,
+                                          fontSize: 10,
                                         ),
                                       ),
                                     ],
@@ -168,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   context.go('/register');
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(14),
@@ -176,14 +181,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.person_add_rounded, size: 12, color: AppColors.darkCard),
+                                      const Icon(Icons.person_add_rounded, size: 11, color: AppColors.darkCard),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Registro',
                                         style: AppTypography.caption.copyWith(
                                           color: AppColors.darkCard,
                                           fontWeight: FontWeight.w700,
-                                          fontSize: 10.5,
+                                          fontSize: 10,
                                         ),
                                       ),
                                     ],

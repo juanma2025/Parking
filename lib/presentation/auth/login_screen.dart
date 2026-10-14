@@ -183,32 +183,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 24),
 
               // Welcome Section Label
-              const SectionLabel('BIENVENIDO', textAlign: TextAlign.center),
+              const SectionLabel(
+                'BIENVENIDO',
+                textAlign: TextAlign.center,
+                color: AppColors.textSecondaryLight,
+              ),
               const SizedBox(height: 8),
 
-              // TwoToneTitle
+              // TwoToneTitle with 'Inicia ' in black and 'sesión' in orange
               const TwoToneTitle(
                 text: 'Inicia ',
                 highlightText: 'sesión',
+                normalColor: AppColors.darkCard,
+                highlightColor: AppColors.primary,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
 
-              // Email Field
+              // Email Field with black background and white text
               AppTextField(
                 label: 'CORREO',
                 hintText: 'usuario@email.com',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                fillColor: AppColors.darkCard,
+                textColor: AppColors.white,
+                hintColor: Colors.white60,
+                labelColor: AppColors.darkCard,
               ),
               const SizedBox(height: 20),
 
-              // Password Field with MOSTRAR toggle
+              // Password Field with black background and white text
               AppTextField(
                 label: 'CONTRASEÑA',
                 hintText: '••••••••••••',
                 controller: _passwordController,
                 isPassword: true,
+                fillColor: AppColors.darkCard,
+                textColor: AppColors.white,
+                hintColor: Colors.white60,
+                labelColor: AppColors.darkCard,
               ),
 
               if (_errorMessage != null) ...[

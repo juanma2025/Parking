@@ -208,6 +208,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const TwoToneTitle(
                 text: 'Crea tu ',
                 highlightText: 'cuenta',
+                normalColor: AppColors.darkCard,
+                highlightColor: AppColors.primary,
               ),
               const SizedBox(height: 8),
               Text(
@@ -246,33 +248,48 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Input: Full Name
+              // Input: Full Name with black background and white text
               AppTextField(
                 label: 'NOMBRE COMPLETO',
                 hintText: 'Juan Pérez',
                 controller: _nameController,
-                prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.textSecondaryLight),
+                fillColor: AppColors.darkCard,
+                textColor: AppColors.white,
+                hintColor: Colors.white60,
+                iconColor: Colors.white70,
+                labelColor: AppColors.darkCard,
+                prefixIcon: const Icon(Icons.badge_outlined, color: Colors.white70),
               ),
               const SizedBox(height: 16),
 
-              // Input: Email
+              // Input: Email with black background and white text
               AppTextField(
                 label: 'CORREO ELECTRÓNICO',
                 hintText: 'juan@ejemplo.com',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                prefixIcon: const Icon(Icons.mail_outline_rounded, color: AppColors.textSecondaryLight),
+                fillColor: AppColors.darkCard,
+                textColor: AppColors.white,
+                hintColor: Colors.white60,
+                iconColor: Colors.white70,
+                labelColor: AppColors.darkCard,
+                prefixIcon: const Icon(Icons.mail_outline_rounded, color: Colors.white70),
               ),
               const SizedBox(height: 16),
 
-              // Input: Password with Inline Eye Toggle
+              // Input: Password with black background, white text and eye toggle
               AppTextField(
                 label: 'CONTRASEÑA',
                 hintText: '••••••••••••',
                 controller: _passwordController,
                 isPassword: true,
                 showEyeToggle: true,
-                prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textSecondaryLight),
+                fillColor: AppColors.darkCard,
+                textColor: AppColors.white,
+                hintColor: Colors.white60,
+                iconColor: Colors.white70,
+                labelColor: AppColors.darkCard,
+                prefixIcon: const Icon(Icons.lock_outline_rounded, color: Colors.white70),
               ),
 
               if (_errorMessage != null) ...[

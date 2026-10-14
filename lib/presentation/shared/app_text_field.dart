@@ -16,6 +16,11 @@ class AppTextField extends StatefulWidget {
   final bool readOnly;
   final VoidCallback? onTap;
   final bool showEyeToggle;
+  final Color? fillColor;
+  final Color? textColor;
+  final Color? hintColor;
+  final Color? labelColor;
+  final Color? iconColor;
 
   const AppTextField({
     super.key,
@@ -31,6 +36,11 @@ class AppTextField extends StatefulWidget {
     this.readOnly = false,
     this.onTap,
     this.showEyeToggle = false,
+    this.fillColor,
+    this.textColor,
+    this.hintColor,
+    this.labelColor,
+    this.iconColor,
   });
 
   @override
@@ -49,7 +59,13 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fillColor = isDark ? AppColors.darkSurface : AppColors.white;
+    final effectiveFillColor = widget.fillColor ?? (isDark ? AppColors.darkSurface : AppColors.white);
+    final isFieldDark = effectiveFillColor.computeLuminance() < 0.35;
+
+    final effectiveTextColor = widget.textColor ?? (isFieldDark ? AppColors.white : AppColors.darkCard);
+    final effectiveHintColor = widget.hintColor ?? (isFieldDark ? Colors.white60 : AppColors.textSecondaryLight.withAlpha(150));
+    final effectiveIconColor = widget.iconColor ?? (isFieldDark ? Colors.white70 : AppColors.textSecondaryLight);
+    final effectiveLabelColor = widget.labelColor ?? (isDark ? AppColors.darkSecondaryText : AppColors.textSecondaryLight);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,14 +75,15 @@ class _AppTextFieldState extends State<AppTextField> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SectionLabel(widget.label!),
+              SectionLabel(widget.label!, color: effectiveLabelColor),
               if (widget.isPassword && !widget.showEyeToggle)
                 GestureDetector(
                   onTap: () => setState(() => _obscureText = !_obscureText),
                   child: Text(
                     _obscureText ? 'MOSTRAR' : 'OCULTAR',
                     style: AppTypography.sectionLabel.copyWith(
-                      color: isDark ? AppColors.darkAccent : AppColors.primary,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -82,18 +99,28 @@ class _AppTextFieldState extends State<AppTextField> {
           onChanged: widget.onChanged,
           readOnly: widget.readOnly,
           onTap: widget.onTap,
+          cursorColor: AppColors.primary,
           style: AppTypography.body.copyWith(
-            color: isDark ? AppColors.darkText : AppColors.darkCard,
+            color: effectiveTextColor,
+            fontWeight: FontWeight.w500,
           ),
           decoration: InputDecoration(
-            fillColor: fillColor,
+            fillColor: effectiveFillColor,
             hintText: widget.hintText,
-            prefixIcon: widget.prefixIcon,
+            hintStyle: AppTypography.body.copyWith(
+              color: effectiveHintColor,
+            ),
+            prefixIcon: widget.prefixIcon != null
+                ? IconTheme(
+                    data: IconThemeData(color: effectiveIconColor),
+                    child: widget.prefixIcon!,
+                  )
+                : null,
             suffixIcon: widget.showEyeToggle && widget.isPassword
                 ? IconButton(
                     icon: Icon(
                       _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      color: AppColors.textSecondaryLight,
+                      color: effectiveIconColor,
                       size: 20,
                     ),
                     onPressed: () => setState(() => _obscureText = !_obscureText),
