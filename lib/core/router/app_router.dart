@@ -23,9 +23,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                           state.uri.path == '/register' || 
                           state.uri.path == '/forgot-password';
 
-      // If guest, only allow auth routes
+      final isPublicBrowseRoute = state.uri.path == '/home' || 
+                                  state.uri.path.startsWith('/parking-detail') || 
+                                  state.uri.path.startsWith('/parking');
+
+      // If guest, allow auth routes and public discovery routes (/home, parking detail)
       if (role == UserRole.guest) {
-        if (!isAuthRoute) return '/login';
+        if (!isAuthRoute && !isPublicBrowseRoute) return '/login';
         return null;
       }
 
@@ -39,7 +43,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Basic role guards
       if (state.uri.path.startsWith('/admin') && role != UserRole.admin) return '/login';
       if (state.uri.path.startsWith('/owner-') && role != UserRole.parkingOwner) return '/login';
-      if (state.uri.path.startsWith('/home') && role != UserRole.vehicleOwner) return '/login';
+      if (state.uri.path.startsWith('/home') && role != UserRole.vehicleOwner && role != UserRole.guest) return '/login';
 
       return null;
     },

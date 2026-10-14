@@ -15,6 +15,7 @@ class AppTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final bool readOnly;
   final VoidCallback? onTap;
+  final bool showEyeToggle;
 
   const AppTextField({
     super.key,
@@ -29,6 +30,7 @@ class AppTextField extends StatefulWidget {
     this.onChanged,
     this.readOnly = false,
     this.onTap,
+    this.showEyeToggle = false,
   });
 
   @override
@@ -58,7 +60,7 @@ class _AppTextFieldState extends State<AppTextField> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               SectionLabel(widget.label!),
-              if (widget.isPassword)
+              if (widget.isPassword && !widget.showEyeToggle)
                 GestureDetector(
                   onTap: () => setState(() => _obscureText = !_obscureText),
                   child: Text(
@@ -87,9 +89,16 @@ class _AppTextFieldState extends State<AppTextField> {
             fillColor: fillColor,
             hintText: widget.hintText,
             prefixIcon: widget.prefixIcon,
-            suffixIcon: widget.isPassword
-                ? null
-                : widget.suffixIcon,
+            suffixIcon: widget.showEyeToggle && widget.isPassword
+                ? IconButton(
+                    icon: Icon(
+                      _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      color: AppColors.textSecondaryLight,
+                      size: 20,
+                    ),
+                    onPressed: () => setState(() => _obscureText = !_obscureText),
+                  )
+                : (widget.isPassword ? null : widget.suffixIcon),
           ),
         ),
       ],

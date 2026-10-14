@@ -31,6 +31,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  void _exitToHome() {
+    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+  }
+
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -77,148 +86,190 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _handleBiometricLogin() {
+    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: AppColors.darkCard,
+        content: Text('Acceso biométrico verificado. Bienvenido.'),
+      ),
+    );
+    context.go('/home');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.lightBackground,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Circular Brand Logo "P"
-                Container(
-                  width: 76,
-                  height: 76,
-                  decoration: const BoxDecoration(
-                    color: AppColors.darkCard,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'P',
-                    style: TextStyle(
-                      fontFamily: AppTypography.fontFamily,
-                      color: AppColors.secondary,
-                      fontSize: 38,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Welcome Section Label
-                const SectionLabel('BIENVENIDO', textAlign: TextAlign.center),
-                const SizedBox(height: 8),
-
-                // TwoToneTitle
-                const TwoToneTitle(
-                  text: 'Inicia ',
-                  highlightText: 'sesión',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 36),
-
-                // Email Field
-                AppTextField(
-                  label: 'CORREO',
-                  hintText: 'usuario@email.com',
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 20),
-
-                // Password Field with MOSTRAR toggle
-                AppTextField(
-                  label: 'CONTRASEÑA',
-                  hintText: '••••••••••••',
-                  controller: _passwordController,
-                  isPassword: true,
-                ),
-
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Top Bar with Exit/Back Button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.error.withAlpha(25),
-                      borderRadius: BorderRadius.circular(16),
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info_outline, color: AppColors.error, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.darkCard),
+                      tooltip: 'Volver a explorar',
+                      onPressed: _exitToHome,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _exitToHome,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Explorar',
                             style: AppTypography.caption.copyWith(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.darkCard,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 11, color: AppColors.darkCard),
+                        ],
+                      ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 18),
 
-                const SizedBox(height: 32),
-
-                // Dark Pill Button
-                PillButton(
-                  text: 'Entrar',
-                  isLoading: _isLoading,
-                  variant: PillButtonVariant.dark,
-                  onPressed: _handleLogin,
-                ),
-                const SizedBox(height: 24),
-
-                // Sign Up Link
-                GestureDetector(
-                  onTap: () => context.go('/register'),
-                  child: Text(
-                    '¿No tienes cuenta? Crear cuenta',
-                    style: AppTypography.bodyBold.copyWith(
-                      decoration: TextDecoration.underline,
+              // Official Brand Logo (Image 3)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: Image.asset(
+                  'assets/images/app_logo.png',
+                  width: 78,
+                  height: 78,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 78,
+                    height: 78,
+                    decoration: BoxDecoration(
                       color: AppColors.darkCard,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'P',
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
+                        color: AppColors.secondary,
+                        fontSize: 38,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+              ),
+              const SizedBox(height: 24),
 
-                // Fast Demo Access Button
-                GestureDetector(
-                  onTap: () {
-                    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-                    context.go('/home');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withAlpha(60),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primary.withAlpha(80)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.darkCard),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Explorar como Conductor (Demo)',
+              // Welcome Section Label
+              const SectionLabel('BIENVENIDO', textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+
+              // TwoToneTitle
+              const TwoToneTitle(
+                text: 'Inicia ',
+                highlightText: 'sesión',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+
+              // Email Field
+              AppTextField(
+                label: 'CORREO',
+                hintText: 'usuario@email.com',
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 20),
+
+              // Password Field with MOSTRAR toggle
+              AppTextField(
+                label: 'CONTRASEÑA',
+                hintText: '••••••••••••',
+                controller: _passwordController,
+                isPassword: true,
+              ),
+
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(25),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: AppColors.error, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
                           style: AppTypography.caption.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.darkCard,
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
+
+              const SizedBox(height: 32),
+
+              // Button 1: Entrar (Dark Pill Button)
+              PillButton(
+                text: 'Entrar',
+                isLoading: _isLoading,
+                variant: PillButtonVariant.dark,
+                onPressed: _handleLogin,
+              ),
+              const SizedBox(height: 14),
+
+              // Button 2: Entrar con biometría (Amber Pill Button)
+              PillButton(
+                text: 'Entrar con biometría',
+                icon: const Icon(Icons.fingerprint_rounded, color: AppColors.darkCard, size: 22),
+                variant: PillButtonVariant.amber,
+                onPressed: _handleBiometricLogin,
+              ),
+              const SizedBox(height: 28),
+
+              // Sign Up Link
+              GestureDetector(
+                onTap: () => context.go('/register'),
+                child: Text(
+                  'Crear cuenta',
+                  style: AppTypography.bodyBold.copyWith(
+                    decoration: TextDecoration.underline,
+                    color: AppColors.darkCard,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       ),

@@ -51,4 +51,77 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(HomeScreen), findsOneWidget);
   });
+
+  testWidgets('User can exit login mode and navigate to home', (WidgetTester tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        currentUserRoleProvider.overrideWithValue(UserRole.guest),
+      ],
+    );
+
+    final router = container.read(routerProvider);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginScreen), findsOneWidget);
+
+    // Tap the exit / back button to leave login mode
+    final exitBtn = find.byTooltip('Volver a explorar');
+    expect(exitBtn, findsOneWidget);
+    await tester.tap(exitBtn);
+    await tester.pumpAndSettle();
+
+    // Verify user exited to HomeScreen
+    expect(find.byType(HomeScreen), findsOneWidget);
+  });
+
+  testWidgets('User can exit register mode and navigate to home', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final container = ProviderContainer(
+      overrides: [
+        currentUserRoleProvider.overrideWithValue(UserRole.guest),
+      ],
+    );
+
+    final router = container.read(routerProvider);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginScreen), findsOneWidget);
+
+    // Navigate to register screen
+    final registerLink = find.text('Crear cuenta');
+    expect(registerLink, findsOneWidget);
+    await tester.tap(registerLink);
+    await tester.pumpAndSettle();
+    expect(find.text('Register Account'), findsOneWidget);
+
+    // Tap exit / back button to leave register mode
+    final backBtn = find.byTooltip('Volver o salir a inicio');
+    expect(backBtn, findsOneWidget);
+    await tester.tap(backBtn);
+    await tester.pumpAndSettle();
+
+    // Verify user successfully exited
+    expect(find.byType(HomeScreen), findsOneWidget);
+  });
 }

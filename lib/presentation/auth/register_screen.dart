@@ -35,6 +35,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
+  void _exitToHome() {
+    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+  }
+
   Future<void> _handleRegister() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
@@ -109,38 +118,48 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.lightBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Navigation Bar
+              // Header Navigation Bar with Exit/Back Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.darkCard),
-                    onPressed: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/login');
-                      }
-                    },
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.darkCard),
+                      tooltip: 'Volver o salir a inicio',
+                      onPressed: _exitToHome,
+                    ),
                   ),
                   Text(
                     'Register Account',
                     style: AppTypography.title.copyWith(fontSize: 18),
                   ),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
+                  GestureDetector(
+                    onTap: _exitToHome,
+                    child: Tooltip(
+                      message: 'Ir a inicio',
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF7A4100), // Brown avatar circle
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.person, color: AppColors.white, size: 20),
+                      ),
                     ),
-                    child: const Icon(Icons.person, color: AppColors.darkCard, size: 20),
                   ),
                 ],
               ),
@@ -154,7 +173,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Row(
                     children: [
                       Container(
-                        width: 32,
+                        width: 36,
                         height: 5,
                         decoration: BoxDecoration(
                           color: AppColors.primary,
@@ -166,7 +185,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(80),
+                          color: AppColors.primary.withAlpha(90),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -175,7 +194,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(80),
+                          color: AppColors.primary.withAlpha(90),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -246,12 +265,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Input: Password
+              // Input: Password with Inline Eye Toggle
               AppTextField(
                 label: 'CONTRASEÑA',
                 hintText: '••••••••••••',
                 controller: _passwordController,
                 isPassword: true,
+                showEyeToggle: true,
                 prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textSecondaryLight),
               ),
 
@@ -287,8 +307,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(160),
-                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFFF2ECE4),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
@@ -299,7 +319,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         color: AppColors.secondary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.shield_outlined, color: AppColors.darkCard, size: 20),
+                      child: const Icon(Icons.verified_user_outlined, color: AppColors.darkCard, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -336,45 +356,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         TextSpan(
                           text: 'Iniciar sesión',
                           style: AppTypography.caption.copyWith(
-                            color: AppColors.darkCard,
+                            color: const Color(0xFF7A4100),
                             fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Fast Demo Button
-              Center(
-                child: GestureDetector(
-                  onTap: () {
-                    ref.read(userRoleStateProvider.notifier).setRole(_selectedRole);
-                    if (_selectedRole == UserRole.parkingOwner) {
-                      context.go('/owner-summary');
-                    } else {
-                      context.go('/home');
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withAlpha(60),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primary.withAlpha(80)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.darkCard),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Continuar en modo Demo (${_selectedRole == UserRole.parkingOwner ? 'Anfitrión' : 'Conductor'})',
-                          style: AppTypography.caption.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.darkCard,
                           ),
                         ),
                       ],
@@ -403,13 +386,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.secondary : AppColors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: isSelected
-              ? Border.all(color: AppColors.primary, width: 2)
-              : Border.all(color: Colors.transparent),
+          borderRadius: BorderRadius.circular(28),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,10 +413,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       : Icon(icon, color: AppColors.darkCard, size: 20),
                 ),
                 Container(
-                  width: 22,
-                  height: 22,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.darkCard : Colors.grey.shade300,
+                    color: isSelected ? AppColors.darkCard : const Color(0xFFE0E0E0),
                     shape: BoxShape.circle,
                   ),
                   child: isSelected
@@ -445,19 +425,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Text(
               title,
               style: AppTypography.bodyBold.copyWith(
                 color: AppColors.darkCard,
-                fontSize: 13.5,
+                fontSize: 14,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
               style: AppTypography.caption.copyWith(
-                color: AppColors.textSecondaryLight,
+                color: isSelected ? AppColors.darkCard.withAlpha(180) : AppColors.textSecondaryLight,
               ),
             ),
           ],

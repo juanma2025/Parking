@@ -4,6 +4,7 @@ import '../../core/theme/app_typography.dart';
 
 enum PillButtonVariant {
   primary, // Orange #FBAB56
+  amber,   // Amber #FEC775
   dark,    // Charcoal #222222
   outline, // Outlined
 }
@@ -68,6 +69,10 @@ class _PillButtonState extends State<PillButton> with SingleTickerProviderStateM
     switch (effectiveVariant) {
       case PillButtonVariant.primary:
         bgColor = AppColors.primary;
+        fgColor = AppColors.darkCard;
+        break;
+      case PillButtonVariant.amber:
+        bgColor = AppColors.secondary;
         fgColor = AppColors.darkCard;
         break;
       case PillButtonVariant.dark:
