@@ -5,6 +5,7 @@ import 'package:parking_app/core/router/app_router.dart';
 import 'package:parking_app/domain/entities/user_role.dart';
 import 'package:parking_app/presentation/auth/auth_providers.dart';
 import 'package:parking_app/presentation/auth/login_screen.dart';
+import 'package:parking_app/presentation/auth/register_screen.dart';
 import 'package:parking_app/presentation/home/home_screen.dart';
 
 void main() {
@@ -50,6 +51,17 @@ void main() {
     
     await tester.pumpAndSettle();
     expect(find.byType(HomeScreen), findsOneWidget);
+
+    // Tap the Registro button on HomeScreen
+    final registroBtn = find.text('Registro');
+    expect(registroBtn, findsOneWidget);
+    await tester.tap(registroBtn);
+    await tester.pumpAndSettle();
+
+    // Verify it navigates directly to RegisterScreen (NOT LoginScreen!)
+    expect(find.byType(RegisterScreen), findsOneWidget);
+    expect(find.text('Conductor'), findsOneWidget);
+    expect(find.text('Parqueadero'), findsOneWidget);
   });
 
   testWidgets('User can exit login mode and navigate to home', (WidgetTester tester) async {

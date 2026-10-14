@@ -14,13 +14,29 @@ import '../../presentation/shared/scaffold_with_nav_bar.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
+class AppRouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+  AppRouterNotifier(this._ref) {
+    _ref.listen<UserRole>(currentUserRoleProvider, (_, _) {
+      notifyListeners();
+    });
+  }
+}
+
+final routerNotifierProvider = Provider<AppRouterNotifier>((ref) {
+  return AppRouterNotifier(ref);
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final role = ref.watch(currentUserRoleProvider);
+  final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
+    refreshListenable: notifier,
     initialLocation: '/login',
     redirect: (context, state) {
+      final role = ref.read(currentUserRoleProvider);
+
       final isAuthRoute = state.uri.path == '/login' || 
                           state.uri.path == '/register' || 
                           state.uri.path.startsWith('/register/') ||
@@ -36,11 +52,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // If authenticated and trying to access auth routes, redirect to home (except during setup)
-      if (isAuthRoute) {
-        if (state.uri.path.startsWith('/register/')) {
-          return null;
-        }
+      // If authenticated and visiting login, redirect to appropriate home
+      if (state.uri.path == '/login') {
         if (role == UserRole.vehicleOwner) return '/home';
         if (role == UserRole.parkingOwner) return '/owner-summary';
         if (role == UserRole.admin) return '/admin';

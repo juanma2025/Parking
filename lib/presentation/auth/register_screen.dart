@@ -297,8 +297,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Expanded(
                     child: _buildRoleCard(
                       isSelected: _selectedRole == UserRole.vehicleOwner,
-                      title: 'Busco parqueadero',
-                      subtitle: 'Conductor',
+                      title: 'Conductor',
+                      subtitle: 'Busco parqueadero',
                       icon: Icons.directions_car_rounded,
                       onTap: () => setState(() => _selectedRole = UserRole.vehicleOwner),
                     ),
@@ -308,8 +308,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Expanded(
                     child: _buildRoleCard(
                       isSelected: _selectedRole == UserRole.parkingOwner,
-                      title: 'Tengo parqueadero',
-                      subtitle: 'Anfitrión',
+                      title: 'Parqueadero',
+                      subtitle: 'Tengo parqueadero',
                       iconText: 'P',
                       onTap: () => setState(() => _selectedRole = UserRole.parkingOwner),
                     ),

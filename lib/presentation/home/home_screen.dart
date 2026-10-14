@@ -5,8 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/motion_utils.dart';
-import '../../domain/entities/user_role.dart';
-import '../auth/auth_providers.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
 import '../shared/app_map.dart';
@@ -139,8 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             children: [
                               GestureDetector(
                                 onTap: () {
-                                  ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                                  context.go('/login');
+                                  context.push('/login');
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -169,8 +166,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(width: 6),
                               GestureDetector(
                                 onTap: () {
-                                  ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                                  context.go('/register');
+                                  context.push('/register');
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
