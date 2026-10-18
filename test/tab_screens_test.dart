@@ -77,7 +77,7 @@ void main() {
       expect(find.text('Reserva asegurada en Clínica del Country'), findsOneWidget);
     });
 
-    testWidgets('AppDrawer renders navigation options and role switcher', (tester) async {
+    testWidgets('AppDrawer renders Apple style navigation and default conductor mode', (tester) async {
       tester.view.physicalSize = const Size(1080, 1920);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -97,10 +97,11 @@ void main() {
       scaffoldState.openDrawer();
       await tester.pumpAndSettle();
 
-      expect(find.text('CAMBIAR MODO DE VISTA'), findsOneWidget);
-      expect(find.text('Conductor'), findsOneWidget);
-      expect(find.text('Anfitrión'), findsOneWidget);
-      expect(find.text('Admin'), findsOneWidget);
+      // Verify role switcher was removed and role is default
+      expect(find.text('CAMBIAR MODO DE VISTA'), findsNothing);
+      expect(find.text('CONDUCTOR'), findsOneWidget);
+      expect(find.text('SERVICIOS'), findsOneWidget);
+      expect(find.text('Explorar Parqueaderos'), findsOneWidget);
       expect(find.text('Mis Reservas'), findsOneWidget);
       expect(find.text('Mis Vehículos'), findsOneWidget);
       expect(find.text('Pagos y Billetera'), findsOneWidget);

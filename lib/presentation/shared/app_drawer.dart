@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_typography.dart';
 import '../../domain/entities/user_role.dart';
 import '../auth/auth_providers.dart';
-import 'section_label.dart';
-import 'status_pill.dart';
 
+/// AppDrawer redesigned with Apple iOS Human Interface Guidelines:
+/// - iOS Inset Grouped layout (Cupertino Settings aesthetic)
+/// - Apple squircle icons with system tint colors
+/// - Clean typography and subtle hairline dividers
+/// - Default role state without hardcoded profiles or manual mode switchers
 class AppDrawer extends ConsumerWidget {
   const AppDrawer({super.key});
 
@@ -21,33 +23,36 @@ class AppDrawer extends ConsumerWidget {
     } catch (_) {
       user = null;
     }
+
+    final hasUser = user != null;
     final userEmail = user?.email ?? 'juan.manuel@ejemplo.com';
-    final userName = user?.userMetadata?['full_name'] as String? ?? 'Juan Manuel';
+    final userName = user?.userMetadata?['full_name'] as String? ?? (hasUser ? 'Juan Manuel' : 'Conductor');
 
     return Drawer(
-      width: 320,
-      backgroundColor: AppColors.lightBackground,
+      width: 310,
+      backgroundColor: const Color(0xFFF2F2F7), // iOS System Grouped Background
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(30)),
       ),
       child: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 children: [
-                  // 1. Header Profile Card
+                  // 1. Apple ID / Account Status Card
                   Container(
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.darkCard,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0x0A000000), width: 0.8),
+                      boxShadow: const [
                         BoxShadow(
-                          color: Colors.black.withAlpha(20),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: Color(0x08000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
                         ),
                       ],
                     ),
@@ -57,24 +62,29 @@ class AppDrawer extends ConsumerWidget {
                         Row(
                           children: [
                             Container(
-                              width: 52,
-                              height: 52,
+                              width: 48,
+                              height: 48,
                               decoration: BoxDecoration(
-                                color: AppColors.secondary,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.white, width: 2),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFF2C2C2E), Color(0xFF1C1C1E)],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0x99FBAB56), width: 1.5),
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                userName.isNotEmpty ? userName[0].toUpperCase() : 'J',
+                                userName.isNotEmpty ? userName[0].toUpperCase() : 'C',
                                 style: const TextStyle(
-                                  color: AppColors.darkCard,
-                                  fontSize: 22,
+                                  color: Colors.white,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.5,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,19 +93,22 @@ class AppDrawer extends ConsumerWidget {
                                     userName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: AppTypography.title.copyWith(
-                                      color: AppColors.white,
-                                      fontSize: 17,
+                                    style: const TextStyle(
+                                      color: Color(0xFF1C1C1E),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.3,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    userEmail,
+                                    hasUser ? userEmail : 'Modo estándar • Conductor',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: AppTypography.caption.copyWith(
-                                      color: Colors.white70,
+                                    style: const TextStyle(
+                                      color: Color(0xFF8E8E93),
                                       fontSize: 12,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ],
@@ -103,219 +116,216 @@ class AppDrawer extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            StatusPill(
-                              text: _getRoleDisplayName(currentRole),
-                              backgroundColor: AppColors.secondary,
-                              textColor: AppColors.darkCard,
-                              dotColor: AppColors.darkCard,
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.pop(context);
-                                context.go('/profile');
-                              },
-                              child: Text(
-                                'Ver perfil →',
-                                style: AppTypography.caption.copyWith(
-                                  color: AppColors.secondary,
-                                  fontWeight: FontWeight.w600,
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F2F7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF34C759), // iOS Green
+                                  shape: BoxShape.circle,
                                 ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  _getRoleBadgeLabel(currentRole),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.6,
+                                    color: Color(0xFF1C1C1E),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // 2. Role Switcher for preview & testing
-                  const SectionLabel('CAMBIAR MODO DE VISTA'),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(20),
+                  // 2. Main Services (iOS Inset Grouped List)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8, bottom: 8),
+                    child: Text(
+                      'SERVICIOS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF8E8E93),
+                        letterSpacing: 0.6,
+                      ),
                     ),
-                    child: Row(
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0x0A000000), width: 0.8),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x08000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
                       children: [
-                        _buildRoleChip(
-                          ref: ref,
+                        _buildAppleMenuItem(
                           context: context,
-                          role: UserRole.vehicleOwner,
-                          label: 'Conductor',
+                          icon: Icons.explore_rounded,
+                          iconColor: const Color(0xFF007AFF), // Apple Blue
+                          title: 'Explorar Parqueaderos',
+                          subtitle: 'Mapa interactivo y búsqueda',
+                          onTap: () {
+                            Navigator.pop(context);
+                            ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+                            context.go('/home');
+                          },
+                        ),
+                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                        _buildAppleMenuItem(
+                          context: context,
+                          icon: Icons.calendar_month_rounded,
+                          iconColor: const Color(0xFFFF9500), // Apple Orange
+                          title: 'Mis Reservas',
+                          subtitle: 'Activas e historial',
+                          badge: '1 activa',
+                          badgeBgColor: const Color(0xFFFFF3E0),
+                          badgeTextColor: const Color(0xFFE65100),
+                          onTap: () {
+                            Navigator.pop(context);
+                            ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+                            context.go('/my-reservations');
+                          },
+                        ),
+                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                        _buildAppleMenuItem(
+                          context: context,
                           icon: Icons.directions_car_rounded,
-                          isSelected: currentRole == UserRole.vehicleOwner,
-                          route: '/home',
+                          iconColor: const Color(0xFF34C759), // Apple Green
+                          title: 'Mis Vehículos',
+                          subtitle: 'Placas y categorías',
+                          badge: '2 autos',
+                          badgeBgColor: const Color(0xFFF2F2F7),
+                          badgeTextColor: const Color(0xFF636366),
+                          onTap: () {
+                            Navigator.pop(context);
+                            ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+                            context.go('/vehicles');
+                          },
                         ),
-                        const SizedBox(width: 4),
-                        _buildRoleChip(
-                          ref: ref,
+                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                        _buildAppleMenuItem(
                           context: context,
-                          role: UserRole.parkingOwner,
-                          label: 'Anfitrión',
-                          icon: Icons.local_parking_rounded,
-                          isSelected: currentRole == UserRole.parkingOwner,
-                          route: '/owner-summary',
+                          icon: Icons.credit_card_rounded,
+                          iconColor: const Color(0xFF5856D6), // Apple Indigo
+                          title: 'Pagos y Billetera',
+                          subtitle: 'Saldo prepago y métodos',
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.go('/payments');
+                          },
                         ),
-                        const SizedBox(width: 4),
-                        _buildRoleChip(
-                          ref: ref,
+                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                        _buildAppleMenuItem(
                           context: context,
-                          role: UserRole.admin,
-                          label: 'Admin',
-                          icon: Icons.shield_rounded,
-                          isSelected: currentRole == UserRole.admin,
-                          route: '/admin',
+                          icon: Icons.notifications_rounded,
+                          iconColor: const Color(0xFFFF3B30), // Apple Red
+                          title: 'Alertas y Mensajes',
+                          subtitle: 'Novedades y avisos',
+                          badge: '3 nuevas',
+                          badgeBgColor: const Color(0xFFFF3B30),
+                          badgeTextColor: Colors.white,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.go('/alerts');
+                          },
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // 3. Navigation Menu Items
-                  const SectionLabel('MENÚ PRINCIPAL'),
-                  const SizedBox(height: 8),
-
-                  _buildMenuItem(
-                    icon: Icons.explore_rounded,
-                    title: 'Explorar Parqueaderos',
-                    subtitle: 'Mapa interactivo y búsqueda',
-                    onTap: () {
-                      Navigator.pop(context);
-                      ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-                      context.go('/home');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.calendar_today_rounded,
-                    title: 'Mis Reservas',
-                    subtitle: 'Activas e historial',
-                    badge: '1 activa',
-                    onTap: () {
-                      Navigator.pop(context);
-                      ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-                      context.go('/my-reservations');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.directions_car_filled_rounded,
-                    title: 'Mis Vehículos',
-                    subtitle: 'Placas y categorías',
-                    badge: '2 autos',
-                    onTap: () {
-                      Navigator.pop(context);
-                      ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-                      context.go('/vehicles');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.account_balance_wallet_rounded,
-                    title: 'Pagos y Billetera',
-                    subtitle: 'Saldo prepago y tarjetas',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.go('/payments');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.notifications_active_rounded,
-                    title: 'Alertas y Mensajes',
-                    subtitle: 'Novedades y recordatorios',
-                    badge: '3 nuevas',
-                    badgeColor: AppColors.primary,
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.go('/alerts');
-                    },
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.person_rounded,
-                    title: 'Mi Perfil',
-                    subtitle: 'Configuración y seguridad',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.go('/profile');
-                    },
-                  ),
-
-                  // Conditional items for Owner
-                  if (currentRole == UserRole.parkingOwner) ...[
-                    const SizedBox(height: 12),
-                    const SectionLabel('GESTIÓN DE ANFITRIÓN'),
-                    const SizedBox(height: 8),
-                    _buildMenuItem(
-                      icon: Icons.dashboard_rounded,
-                      title: 'Resumen General',
-                      subtitle: 'Ocupación e ingresos',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/owner-summary');
-                      },
+                  // 3. Security & Access Group (iOS Style)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8, bottom: 8),
+                    child: Text(
+                      'SEGURIDAD Y ACCESO',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF8E8E93),
+                        letterSpacing: 0.6,
+                      ),
                     ),
-                    _buildMenuItem(
-                      icon: Icons.local_parking_rounded,
-                      title: 'Espacios y Cupos',
-                      subtitle: 'Control de disponibilidad',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/owner-spaces');
-                      },
-                    ),
-                    _buildMenuItem(
-                      icon: Icons.assignment_rounded,
-                      title: 'Reservas Recibidas',
-                      subtitle: 'Vehículos en tus garajes',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/owner-reservations');
-                      },
-                    ),
-                  ],
-
-                  // Conditional items for Admin
-                  if (currentRole == UserRole.admin) ...[
-                    const SizedBox(height: 12),
-                    const SectionLabel('ADMINISTRACIÓN'),
-                    const SizedBox(height: 8),
-                    _buildMenuItem(
-                      icon: Icons.admin_panel_settings_rounded,
-                      title: 'Panel Maestro',
-                      subtitle: 'Métricas y validaciones',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/admin');
-                      },
-                    ),
-                  ],
-
-                  const SizedBox(height: 16),
-
-                  // 4. Quick Auth Navigation Box
+                  ),
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withAlpha(50),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: AppColors.secondary.withAlpha(120)),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0x0A000000), width: 0.8),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x08000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'ACCESO A LA CUENTA',
-                          style: AppTypography.sectionLabel.copyWith(
-                            color: AppColors.darkCard,
-                            fontSize: 11,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1C1C1E),
+                                borderRadius: BorderRadius.circular(8.5),
+                              ),
+                              child: const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 16),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Acceso Seguro',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1C1C1E),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Sincroniza tus reservas y vehículos',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF8E8E93),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -323,20 +333,22 @@ class AppDrawer extends ConsumerWidget {
                             Expanded(
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.darkCard,
-                                  foregroundColor: AppColors.white,
+                                  backgroundColor: const Color(0xFF1C1C1E),
+                                  foregroundColor: Colors.white,
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                icon: const Icon(Icons.login_rounded, size: 16),
-                                label: const Text('Iniciar sesión', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                icon: const Icon(Icons.login_rounded, size: 15),
+                                label: const Text(
+                                  'Iniciar sesión',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                                  context.go('/login');
+                                  context.push('/login');
                                 },
                               ),
                             ),
@@ -345,19 +357,21 @@ class AppDrawer extends ConsumerWidget {
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
-                                  foregroundColor: AppColors.darkCard,
+                                  foregroundColor: const Color(0xFF1C1C1E),
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                icon: const Icon(Icons.person_add_rounded, size: 16),
-                                label: const Text('Registrarse', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                icon: const Icon(Icons.person_add_rounded, size: 15),
+                                label: const Text(
+                                  'Registrarse',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                                  context.go('/register');
+                                  context.push('/register');
                                 },
                               ),
                             ),
@@ -370,13 +384,15 @@ class AppDrawer extends ConsumerWidget {
               ),
             ),
 
-            // Footer: Logout & version
+            // 4. Apple iOS Style Footer
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.black.withAlpha(15))),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Color(0x0F000000), width: 0.5)),
               ),
               child: InkWell(
+                borderRadius: BorderRadius.circular(10),
                 onTap: () async {
                   Navigator.pop(context);
                   try {
@@ -387,26 +403,31 @@ class AppDrawer extends ConsumerWidget {
                     context.go('/login');
                   }
                 },
-                child: Row(
-                  children: [
-                    const Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Cerrar sesión',
-                      style: AppTypography.bodyBold.copyWith(
-                        color: AppColors.error,
-                        fontSize: 12.5,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded, color: Color(0xFFFF3B30), size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Cerrar sesión',
+                        style: TextStyle(
+                          color: Color(0xFFFF3B30),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'v1.0',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondaryLight,
-                        fontSize: 11,
+                      Spacer(),
+                      Text(
+                        'v1.0',
+                        style: TextStyle(
+                          color: Color(0xFF8E8E93),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -416,121 +437,89 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _buildRoleChip({
-    required WidgetRef ref,
+  Widget _buildAppleMenuItem({
     required BuildContext context,
-    required UserRole role,
-    required String label,
     required IconData icon,
-    required bool isSelected,
-    required String route,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          ref.read(userRoleStateProvider.notifier).setRole(role);
-          Navigator.pop(context);
-          context.go(route);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.darkCard : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? AppColors.secondary : AppColors.darkCard,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: AppTypography.caption.copyWith(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? AppColors.white : AppColors.darkCard,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
+    required Color iconColor,
     required String title,
     required String subtitle,
     String? badge,
-    Color? badgeColor,
+    Color? badgeBgColor,
+    Color? badgeTextColor,
     required VoidCallback onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: ListTile(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: AppColors.secondary.withAlpha(60),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppColors.darkCard, size: 20),
-        ),
-        title: Text(
-          title,
-          style: AppTypography.bodyBold.copyWith(
-            color: AppColors.darkCard,
-            fontSize: 14,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: AppTypography.caption.copyWith(
-            color: AppColors.textSecondaryLight,
-            fontSize: 11,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (badge != null) ...[
+        splashColor: const Color(0x0A000000),
+        highlightColor: const Color(0x05000000),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: badgeColor ?? AppColors.secondary,
-                  borderRadius: BorderRadius.circular(12),
+                  color: iconColor,
+                  borderRadius: BorderRadius.circular(7.5),
                 ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: badgeColor != null ? AppColors.white : AppColors.darkCard,
-                  ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: Colors.white, size: 17),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E),
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF8E8E93),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
+              if (badge != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: badgeBgColor ?? const Color(0xFFF2F2F7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: badgeTextColor ?? const Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFFC7C7CC), size: 18),
             ],
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight, size: 20),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  String _getRoleDisplayName(UserRole role) {
+  String _getRoleBadgeLabel(UserRole role) {
     switch (role) {
       case UserRole.guest:
         return 'INVITADO';

@@ -19,7 +19,6 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentRole = ref.watch(currentUserRoleProvider);
     User? user;
     try {
       user = Supabase.instance.client.auth.currentUser;
@@ -146,57 +145,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
 
-              // Role Switcher Card
-              MotionUtils.staggerEntrance(
-                AppCard(
-                  variant: AppCardVariant.amber,
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionLabel('MODO ACTIVO DE USUARIO', color: AppColors.darkCard),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Cambia tu rol para acceder a herramientas de conductor, anfitrión o administrador.',
-                        style: AppTypography.caption.copyWith(color: AppColors.darkCard.withAlpha(190)),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          _buildProfileRoleButton(
-                            ref: ref,
-                            context: context,
-                            label: 'Conductor',
-                            role: UserRole.vehicleOwner,
-                            isSelected: currentRole == UserRole.vehicleOwner,
-                            route: '/home',
-                          ),
-                          const SizedBox(width: 8),
-                          _buildProfileRoleButton(
-                            ref: ref,
-                            context: context,
-                            label: 'Anfitrión',
-                            role: UserRole.parkingOwner,
-                            isSelected: currentRole == UserRole.parkingOwner,
-                            route: '/owner-summary',
-                          ),
-                          const SizedBox(width: 8),
-                          _buildProfileRoleButton(
-                            ref: ref,
-                            context: context,
-                            label: 'Admin',
-                            role: UserRole.admin,
-                            isSelected: currentRole == UserRole.admin,
-                            route: '/admin',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                index: 2,
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
               // Menu Settings (White Card)
               const SectionLabel('PREFERENCIAS Y CUENTA'),
@@ -287,39 +236,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileRoleButton({
-    required WidgetRef ref,
-    required BuildContext context,
-    required String label,
-    required UserRole role,
-    required bool isSelected,
-    required String route,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          ref.read(userRoleStateProvider.notifier).setRole(role);
-          context.go(route);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.darkCard : AppColors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: isSelected ? AppColors.white : AppColors.darkCard,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildStatItem(String count, String label) {
     return Column(
