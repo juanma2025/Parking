@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 -- 11. AI CONVERSATIONS
 CREATE TABLE IF NOT EXISTS public.ai_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   title TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

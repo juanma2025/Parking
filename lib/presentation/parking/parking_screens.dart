@@ -364,31 +364,3 @@ class ConfirmationScreen extends StatelessWidget {
     );
   }
 }
-
-// ============================================================================
-// FORGOT PASSWORD SCREEN (/forgot-password)
-// ============================================================================
-class ForgotPasswordScreen extends StatelessWidget {
-  const ForgotPasswordScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const TwoToneTitle(text: 'Recuperar ', highlightText: 'contraseña'),
-              const SizedBox(height: 16),
-              const Text('Ingresa tu correo para recibir las instrucciones de restablecimiento.'),
-              const SizedBox(height: 24),
-              PillButton(text: 'Volver a iniciar sesión', variant: PillButtonVariant.dark, onPressed: () => context.go('/login')),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

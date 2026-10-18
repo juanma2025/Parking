@@ -205,7 +205,7 @@ class ProfileScreen extends ConsumerWidget {
                     GestureDetector(
                       onTap: () async {
                         try {
-                          await Supabase.instance.client.auth.signOut();
+                          await ref.read(signOutUseCaseProvider).execute();
                         } catch (_) {}
                         ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
                         if (context.mounted) {

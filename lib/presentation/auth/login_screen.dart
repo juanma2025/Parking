@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/errors/failure.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../domain/entities/user_role.dart';
@@ -57,20 +57,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      final signInUseCase = ref.read(signInUseCaseProvider);
+      final res = await signInUseCase.execute(
         email: email,
         password: password,
       );
       if (mounted) {
-        ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-        context.go('/home');
+        final userId = res.user?.id;
+        UserRole targetRole = UserRole.vehicleOwner;
+        if (userId != null) {
+          targetRole = await ref.read(authRepositoryProvider).fetchUserRole(userId);
+        }
+        if (!mounted) return;
+        ref.read(userRoleStateProvider.notifier).setRole(targetRole);
+
+        if (targetRole == UserRole.parkingOwner) {
+          context.go('/owner-summary');
+        } else if (targetRole == UserRole.admin) {
+          context.go('/admin');
+        } else {
+          context.go('/home');
+        }
       }
-    } on AuthException catch (e) {
+    } on Failure catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.message.contains('Invalid login credentials')
-              ? 'Correo o contraseña incorrectos. Verifica tus datos.'
-              : 'No pudimos iniciar sesión. Intenta nuevamente.';
+          _errorMessage = e.message;
         });
       }
     } catch (_) {
@@ -87,14 +99,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _handleBiometricLogin() {
-    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         backgroundColor: AppColors.darkCard,
-        content: Text('Acceso biométrico verificado. Bienvenido.'),
+        content: Text('El acceso biométrico estará disponible próximamente.'),
       ),
     );
-    context.go('/home');
   }
 
   @override

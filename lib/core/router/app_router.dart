@@ -39,8 +39,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuthRoute = state.uri.path == '/login' || 
                           state.uri.path == '/register' || 
-                          state.uri.path.startsWith('/register/') ||
-                          state.uri.path == '/forgot-password';
+                          state.uri.path.startsWith('/register/');
 
       final isPublicBrowseRoute = state.uri.path == '/home' || 
                                   state.uri.path.startsWith('/parking-detail') || 
@@ -83,10 +82,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register/parking-setup',
         builder: (context, state) => const ParkingSetupScreen(),
-      ),
-      GoRoute(
-        path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
       // App Routes (inside Shell)

@@ -5,9 +5,7 @@ class GetProfileUseCase {
   final ProfileRepository repository;
   GetProfileUseCase(this.repository);
 
-  Future<Profile> execute(String id) {
-    throw UnimplementedError();
-  }
+  Future<Profile> execute(String id) => repository.getProfile(id);
 }
 
 class GetVehiclesUseCase {

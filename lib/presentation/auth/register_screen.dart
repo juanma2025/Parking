@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/errors/failure.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../domain/entities/user_role.dart';
@@ -62,9 +62,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       setState(() {
-        _errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+        _errorMessage = 'La contraseña debe tener al menos 8 caracteres.';
       });
       return;
     }
@@ -75,14 +75,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      await Supabase.instance.client.auth.signUp(
+      final signUpUseCase = ref.read(signUpUseCaseProvider);
+      final res = await signUpUseCase.execute(
         email: email,
         password: password,
-        data: {
-          'full_name': name,
-          'role': _selectedRole.toDbValue(),
-        },
+        fullName: name,
+        role: _selectedRole,
       );
+
+      if (res.session == null) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'No se inició sesión automáticamente. "Confirm email" sigue activo en Supabase. Desactívalo para permitir el acceso directo.';
+          });
+        }
+        return;
+      }
 
       if (mounted) {
         ref.read(userRoleStateProvider.notifier).setRole(_selectedRole);
@@ -92,23 +100,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           context.push('/register/vehicle-setup');
         }
       }
-    } on AuthException catch (e) {
+    } on Failure catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.message.contains('already registered')
-              ? 'Este correo ya se encuentra registrado. Inicia sesión.'
-              : 'No pudimos crear la cuenta. Intenta nuevamente.';
+          _errorMessage = e.message;
         });
       }
     } catch (_) {
-      // In offline / fallback mode, advance to step 2
       if (mounted) {
-        ref.read(userRoleStateProvider.notifier).setRole(_selectedRole);
-        if (_selectedRole == UserRole.parkingOwner) {
-          context.push('/register/parking-setup');
-        } else {
-          context.push('/register/vehicle-setup');
-        }
+        setState(() {
+          _errorMessage = 'No pudimos crear la cuenta. Intenta nuevamente.';
+        });
       }
     } finally {
       if (mounted) {

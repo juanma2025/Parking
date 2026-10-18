@@ -396,7 +396,7 @@ class AppDrawer extends ConsumerWidget {
                 onTap: () async {
                   Navigator.pop(context);
                   try {
-                    await Supabase.instance.client.auth.signOut();
+                    await ref.read(signOutUseCaseProvider).execute();
                   } catch (_) {}
                   ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
                   if (context.mounted) {

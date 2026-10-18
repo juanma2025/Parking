@@ -7,6 +7,7 @@ import 'package:parking_app/presentation/auth/auth_providers.dart';
 import 'package:parking_app/presentation/auth/login_screen.dart';
 import 'package:parking_app/presentation/auth/register_screen.dart';
 import 'package:parking_app/presentation/home/home_screen.dart';
+import 'helpers/fake_auth_repository.dart';
 
 void main() {
   testWidgets('Router redirects guest to login', (WidgetTester tester) async {
@@ -145,6 +146,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         currentUserRoleProvider.overrideWithValue(UserRole.guest),
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
       ],
     );
 
@@ -202,7 +204,11 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+      ],
+    );
     container.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
 
     final router = container.read(routerProvider);
