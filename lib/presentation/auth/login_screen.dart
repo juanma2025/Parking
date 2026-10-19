@@ -32,7 +32,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _exitToHome() {
-    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+    ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
     if (context.canPop()) {
       context.pop();
     } else {

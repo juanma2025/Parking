@@ -7,6 +7,8 @@ import 'package:parking_app/presentation/auth/auth_providers.dart';
 import 'package:parking_app/presentation/auth/login_screen.dart';
 import 'package:parking_app/presentation/auth/register_screen.dart';
 import 'package:parking_app/presentation/home/home_screen.dart';
+import 'package:parking_app/presentation/shared/animated_auth_actions.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'helpers/fake_auth_repository.dart';
 
 void main() {
@@ -32,15 +34,26 @@ void main() {
     expect(find.byType(LoginScreen), findsOneWidget);
   });
   
-  testWidgets('Router redirects vehicleOwner to home', (WidgetTester tester) async {
+  testWidgets('Authenticated vehicleOwner is redirected to home and sees hamburger menu', (WidgetTester tester) async {
+    final fakeRepo = FakeAuthRepository();
+    final testUser = User(
+      id: 'driver-123',
+      appMetadata: {},
+      userMetadata: {'full_name': 'Carlos Gomez', 'role': 'conductor'},
+      aud: 'authenticated',
+      createdAt: DateTime.now().toIso8601String(),
+    );
+    fakeRepo.setCurrentUser(testUser, role: UserRole.vehicleOwner);
+
     final container = ProviderContainer(
       overrides: [
+        authRepositoryProvider.overrideWithValue(fakeRepo),
         currentUserRoleProvider.overrideWithValue(UserRole.vehicleOwner),
       ],
     );
-    
+
     final router = container.read(routerProvider);
-    
+
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -49,20 +62,94 @@ void main() {
         ),
       ),
     );
-    
+
     await tester.pumpAndSettle();
     expect(find.byType(HomeScreen), findsOneWidget);
 
-    // Tap the Registro button on HomeScreen
-    final registroBtn = find.text('Registro');
-    expect(registroBtn, findsOneWidget);
-    await tester.tap(registroBtn);
+    // Verify hamburger menu button is present when authenticated!
+    expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
+  });
+
+  testWidgets('Unauthenticated user on HomeScreen sees animated auth actions and no hamburger menu', (WidgetTester tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        currentUserRoleProvider.overrideWithValue(UserRole.guest),
+      ],
+    );
+
+    final router = container.read(routerProvider);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginScreen), findsOneWidget);
+
+    // Tap exit / explore to go to HomeScreen
+    final exitBtn = find.byTooltip('Volver a explorar');
+    expect(exitBtn, findsOneWidget);
+    await tester.tap(exitBtn);
     await tester.pumpAndSettle();
 
-    // Verify it navigates directly to RegisterScreen (NOT LoginScreen!)
+    // Verify on HomeScreen
+    expect(find.byType(HomeScreen), findsOneWidget);
+
+    // Verify hamburger menu button is NOT present when unauthenticated!
+    expect(find.byIcon(Icons.menu_rounded), findsNothing);
+
+    // Verify AnimatedAuthActions is present with 'Iniciar sesión' and 'Registro'
+    expect(find.byType(AnimatedAuthActions), findsOneWidget);
+    final registroBtn = find.text('Registro');
+    expect(registroBtn, findsOneWidget);
+
+    // Tap Registro button and verify it navigates to RegisterScreen
+    await tester.tap(registroBtn);
+    await tester.pumpAndSettle();
     expect(find.byType(RegisterScreen), findsOneWidget);
     expect(find.text('Conductor'), findsOneWidget);
     expect(find.text('Parqueadero'), findsOneWidget);
+  });
+
+  testWidgets('Unauthenticated user on HomeScreen can tap Iniciar sesión to navigate to LoginScreen', (WidgetTester tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        currentUserRoleProvider.overrideWithValue(UserRole.guest),
+      ],
+    );
+
+    final router = container.read(routerProvider);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    // Exit login to explore on HomeScreen
+    await tester.tap(find.byTooltip('Volver a explorar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HomeScreen), findsOneWidget);
+
+    // Tap Iniciar sesión in AnimatedAuthActions
+    final loginBtn = find.text('Iniciar sesión');
+    expect(loginBtn, findsOneWidget);
+    await tester.tap(loginBtn);
+    await tester.pumpAndSettle();
+
+    // Verify successfully routed to LoginScreen!
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('CORREO'), findsOneWidget);
   });
 
   testWidgets('User can exit login mode and navigate to home', (WidgetTester tester) async {

@@ -20,6 +20,9 @@ class AppRouterNotifier extends ChangeNotifier {
     _ref.listen<UserRole>(currentUserRoleProvider, (_, _) {
       notifyListeners();
     });
+    _ref.listen<bool>(isAuthenticatedProvider, (_, _) {
+      notifyListeners();
+    });
   }
 }
 
@@ -35,33 +38,38 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     initialLocation: '/login',
     redirect: (context, state) {
+      final isAuth = ref.read(isAuthenticatedProvider);
       final role = ref.read(currentUserRoleProvider);
 
       final isAuthRoute = state.uri.path == '/login' || 
                           state.uri.path == '/register' || 
                           state.uri.path.startsWith('/register/');
 
-      final isPublicBrowseRoute = state.uri.path == '/home' || 
-                                  state.uri.path.startsWith('/parking-detail') || 
-                                  state.uri.path.startsWith('/parking');
+      final isPublicRoute = state.uri.path == '/home' || 
+                            state.uri.path == '/profile' || 
+                            state.uri.path.startsWith('/parking-detail') || 
+                            state.uri.path.startsWith('/parking');
 
-      // If guest, allow auth routes and public discovery routes (/home, parking detail)
-      if (role == UserRole.guest) {
-        if (!isAuthRoute && !isPublicBrowseRoute) return '/login';
-        return null;
+      // 1. If not authenticated:
+      if (!isAuth) {
+        // Freely allow auth screens (/login, /register) and public exploration screens (/home, /profile, /parking-detail)
+        if (isAuthRoute || isPublicRoute) {
+          return null;
+        }
+        // Protected screens require login
+        return '/login';
       }
 
-      // If authenticated and visiting login, redirect to appropriate home
-      if (state.uri.path == '/login') {
-        if (role == UserRole.vehicleOwner) return '/home';
+      // 2. If authenticated and visiting login or register, route to appropriate role home
+      if (isAuthRoute) {
         if (role == UserRole.parkingOwner) return '/owner-summary';
         if (role == UserRole.admin) return '/admin';
+        return '/home';
       }
 
-      // Basic role guards
-      if (state.uri.path.startsWith('/admin') && role != UserRole.admin) return '/login';
-      if (state.uri.path.startsWith('/owner-') && role != UserRole.parkingOwner) return '/login';
-      if (state.uri.path.startsWith('/home') && role != UserRole.vehicleOwner && role != UserRole.guest) return '/login';
+      // 3. Role-based guards for authenticated users
+      if (state.uri.path.startsWith('/admin') && role != UserRole.admin) return '/home';
+      if (state.uri.path.startsWith('/owner-') && role != UserRole.parkingOwner) return '/home';
 
       return null;
     },

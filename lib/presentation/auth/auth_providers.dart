@@ -40,7 +40,7 @@ final currentProfileProvider = FutureProvider<Profile?>((ref) async {
 
 class UserRoleNotifier extends Notifier<UserRole> {
   @override
-  UserRole build() => UserRole.vehicleOwner;
+  UserRole build() => UserRole.guest;
 
   void setRole(UserRole role) {
     state = role;
@@ -64,4 +64,9 @@ final currentUserRoleProvider = Provider<UserRole>((ref) {
     data: (profile) => profile?.role ?? manualRole,
     orElse: () => manualRole,
   );
+});
+
+final isAuthenticatedProvider = Provider<bool>((ref) {
+  final user = ref.watch(currentUserProvider);
+  return user != null;
 });

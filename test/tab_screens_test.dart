@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:parking_app/presentation/alerts/alerts_screen.dart';
 import 'package:parking_app/presentation/payments/payments_screen.dart';
 import 'package:parking_app/presentation/reservations/my_reservations_screen.dart';
+import 'package:parking_app/domain/entities/user_role.dart';
+import 'package:parking_app/presentation/auth/auth_providers.dart';
 import 'package:parking_app/presentation/shared/app_drawer.dart';
 import 'package:parking_app/presentation/vehicles/vehicles_screen.dart';
 
@@ -77,7 +79,7 @@ void main() {
       expect(find.text('Reserva asegurada en Clínica del Country'), findsOneWidget);
     });
 
-    testWidgets('AppDrawer renders Apple style navigation and default conductor mode', (tester) async {
+    testWidgets('AppDrawer renders Apple style navigation in guest mode', (tester) async {
       tester.view.physicalSize = const Size(1080, 1920);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -97,9 +99,9 @@ void main() {
       scaffoldState.openDrawer();
       await tester.pumpAndSettle();
 
-      // Verify role switcher was removed and role is default
+      // Verify role switcher was removed and role is default guest
       expect(find.text('CAMBIAR MODO DE VISTA'), findsNothing);
-      expect(find.text('CONDUCTOR'), findsOneWidget);
+      expect(find.text('INVITADO'), findsOneWidget);
       expect(find.text('SERVICIOS'), findsOneWidget);
       expect(find.text('Explorar Parqueaderos'), findsOneWidget);
       expect(find.text('Mis Reservas'), findsOneWidget);
@@ -108,6 +110,32 @@ void main() {
       expect(find.text('Alertas y Mensajes'), findsOneWidget);
       expect(find.text('Iniciar sesión'), findsOneWidget);
       expect(find.text('Registrarse'), findsOneWidget);
+    });
+
+    testWidgets('AppDrawer renders conductor badge when role is vehicleOwner', (tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserRoleProvider.overrideWithValue(UserRole.vehicleOwner),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              drawer: AppDrawer(),
+              body: Center(child: Text('Home Body')),
+            ),
+          ),
+        ),
+      );
+
+      final scaffoldState = tester.state<ScaffoldState>(find.byType(Scaffold));
+      scaffoldState.openDrawer();
+      await tester.pumpAndSettle();
+
+      expect(find.text('CONDUCTOR'), findsOneWidget);
     });
   });
 }

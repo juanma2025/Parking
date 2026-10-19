@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/user_role.dart';
 import '../auth/auth_providers.dart';
@@ -17,16 +16,29 @@ class AppDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentRole = ref.watch(currentUserRoleProvider);
-    User? user;
-    try {
-      user = Supabase.instance.client.auth.currentUser;
-    } catch (_) {
-      user = null;
-    }
+    final isAuth = ref.watch(isAuthenticatedProvider);
+    final user = ref.watch(currentUserProvider);
+    final profileAsync = ref.watch(currentProfileProvider);
 
-    final hasUser = user != null;
-    final userEmail = user?.email ?? 'juan.manuel@ejemplo.com';
-    final userName = user?.userMetadata?['full_name'] as String? ?? (hasUser ? 'Juan Manuel' : 'Conductor');
+    final String userName;
+    final String userEmail;
+    final String initialLetter;
+
+    if (isAuth && user != null) {
+      final profileName = profileAsync.value?.fullName;
+      final metaName = user.userMetadata?['full_name'] as String?;
+      userName = (profileName != null && profileName.trim().isNotEmpty)
+          ? profileName.trim()
+          : (metaName != null && metaName.trim().isNotEmpty)
+              ? metaName.trim()
+              : (user.email?.split('@').first ?? 'Conductor');
+      userEmail = user.email ?? 'Sin correo vinculado';
+      initialLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'C';
+    } else {
+      userName = 'Modo Exploración';
+      userEmail = 'Sin sesión iniciada';
+      initialLetter = 'E';
+    }
 
     return Drawer(
       width: 310,
@@ -75,7 +87,7 @@ class AppDrawer extends ConsumerWidget {
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                userName.isNotEmpty ? userName[0].toUpperCase() : 'C',
+                                initialLetter,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -102,7 +114,7 @@ class AppDrawer extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    hasUser ? userEmail : 'Modo estándar • Conductor',
+                                    userEmail,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -297,27 +309,31 @@ class AppDrawer extends ConsumerWidget {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1C1C1E),
+                                color: isAuth ? const Color(0xFF34C759) : const Color(0xFF1C1C1E),
                                 borderRadius: BorderRadius.circular(8.5),
                               ),
-                              child: const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 16),
+                              child: Icon(
+                                isAuth ? Icons.verified_user_rounded : Icons.lock_outline_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
                             const SizedBox(width: 10),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Acceso Seguro',
-                                    style: TextStyle(
+                                    isAuth ? 'Sesión Protegida' : 'Acceso Seguro',
+                                    style: const TextStyle(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w600,
                                       color: Color(0xFF1C1C1E),
                                     ),
                                   ),
                                   Text(
-                                    'Sincroniza tus reservas y vehículos',
-                                    style: TextStyle(
+                                    isAuth ? 'Datos sincronizados en tiempo real' : 'Sincroniza tus reservas y vehículos',
+                                    style: const TextStyle(
                                       fontSize: 11,
                                       color: Color(0xFF8E8E93),
                                     ),
@@ -327,56 +343,58 @@ class AppDrawer extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1C1C1E),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                        if (!isAuth) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1C1C1E),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                ),
-                                icon: const Icon(Icons.login_rounded, size: 15),
-                                label: const Text(
-                                  'Iniciar sesión',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                ),
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  context.push('/login');
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: const Color(0xFF1C1C1E),
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                  icon: const Icon(Icons.login_rounded, size: 15),
+                                  label: const Text(
+                                    'Iniciar sesión',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                                   ),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    context.push('/login');
+                                  },
                                 ),
-                                icon: const Icon(Icons.person_add_rounded, size: 15),
-                                label: const Text(
-                                  'Registrarse',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                                ),
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  context.push('/register');
-                                },
                               ),
-                            ),
-                          ],
-                        ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: const Color(0xFF1C1C1E),
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.person_add_rounded, size: 15),
+                                  label: const Text(
+                                    'Registrarse',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    context.push('/register');
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -391,45 +409,82 @@ class AppDrawer extends ConsumerWidget {
                 color: Colors.white,
                 border: Border(top: BorderSide(color: Color(0x0F000000), width: 0.5)),
               ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () async {
-                  Navigator.pop(context);
-                  try {
-                    await ref.read(signOutUseCaseProvider).execute();
-                  } catch (_) {}
-                  ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                  if (context.mounted) {
-                    context.go('/login');
-                  }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout_rounded, color: Color(0xFFFF3B30), size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Cerrar sesión',
-                        style: TextStyle(
-                          color: Color(0xFFFF3B30),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+              child: isAuth
+                  ? InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        try {
+                          await ref.read(signOutUseCaseProvider).execute();
+                        } catch (_) {}
+                        ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
+                        if (context.mounted) {
+                          context.go('/home');
+                        }
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout_rounded, color: Color(0xFFFF3B30), size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Cerrar sesión',
+                              style: TextStyle(
+                                color: Color(0xFFFF3B30),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Spacer(),
+                            Text(
+                              'v1.0',
+                              style: TextStyle(
+                                color: Color(0xFF8E8E93),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Spacer(),
-                      Text(
-                        'v1.0',
-                        style: TextStyle(
-                          color: Color(0xFF8E8E93),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, color: Color(0xFF8E8E93), size: 16),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Modo Exploración',
+                              style: TextStyle(
+                                color: Color(0xFF8E8E93),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.push('/login');
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              child: Text(
+                                'Entrar',
+                                style: TextStyle(
+                                  color: Color(0xFF007AFF),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
             ),
           ],
         ),

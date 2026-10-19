@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/motion_utils.dart';
@@ -19,17 +18,33 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    User? user;
-    try {
-      user = Supabase.instance.client.auth.currentUser;
-    } catch (_) {
-      user = null;
+    final isAuth = ref.watch(isAuthenticatedProvider);
+    final user = ref.watch(currentUserProvider);
+    final profileAsync = ref.watch(currentProfileProvider);
+    final role = ref.watch(currentUserRoleProvider);
+
+    final String userName;
+    final String userEmail;
+    final String initialLetter;
+
+    if (isAuth && user != null) {
+      final profileName = profileAsync.value?.fullName;
+      final metaName = user.userMetadata?['full_name'] as String?;
+      userName = (profileName != null && profileName.trim().isNotEmpty)
+          ? profileName.trim()
+          : (metaName != null && metaName.trim().isNotEmpty)
+              ? metaName.trim()
+              : (user.email?.split('@').first ?? 'Conductor');
+      userEmail = user.email ?? 'Sin correo vinculado';
+      initialLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+    } else {
+      userName = 'Modo Invitado';
+      userEmail = 'Inicia sesión para sincronizar tus datos';
+      initialLetter = 'I';
     }
-    final userName = user?.userMetadata?['full_name'] as String? ?? 'Juan Manuel';
-    final userEmail = user?.email ?? 'juan.manuel@ejemplo.com';
 
     return Scaffold(
-      drawer: const AppDrawer(),
+      drawer: isAuth ? const AppDrawer() : null,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
@@ -47,19 +62,32 @@ class ProfileScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(8),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: Builder(
-                        builder: (ctx) => IconButton(
-                          icon: const Icon(Icons.menu_rounded, color: AppColors.darkCard),
-                          onPressed: () => Scaffold.of(ctx).openDrawer(),
-                        ),
-                      ),
+                      child: isAuth
+                          ? Builder(
+                              builder: (ctx) => IconButton(
+                                icon: const Icon(Icons.menu_rounded, color: AppColors.darkCard),
+                                onPressed: () => Scaffold.of(ctx).openDrawer(),
+                              ),
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.darkCard, size: 18),
+                              onPressed: () => context.go('/home'),
+                            ),
                     ),
                     Text(
                       'Mi Perfil',
                       style: AppTypography.title.copyWith(fontSize: 18),
                     ),
                     AvatarButton(
+                      initials: initialLetter,
                       onTap: () {},
                     ),
                   ],
@@ -86,14 +114,20 @@ class ProfileScreen extends ConsumerWidget {
                               border: Border.all(color: AppColors.white, width: 3),
                             ),
                             alignment: Alignment.center,
-                            child: Text(
-                              userName.isNotEmpty ? userName[0].toUpperCase() : 'J',
-                              style: const TextStyle(
-                                color: AppColors.darkCard,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                            child: isAuth
+                                ? Text(
+                                    initialLetter,
+                                    style: const TextStyle(
+                                      color: AppColors.darkCard,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.person_outline_rounded,
+                                    color: AppColors.darkCard,
+                                    size: 32,
+                                  ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -110,10 +144,12 @@ class ProfileScreen extends ConsumerWidget {
                                   style: AppTypography.caption.copyWith(color: Colors.white70),
                                 ),
                                 const SizedBox(height: 6),
-                                const StatusPill(
-                                  text: 'VERIFICADO RUNT ★',
-                                  backgroundColor: Color(0xFF333333),
-                                  textColor: AppColors.secondary,
+                                StatusPill(
+                                  text: isAuth
+                                      ? (role == UserRole.parkingOwner ? 'PROPIETARIO VERIFICADO ★' : 'VERIFICADO RUNT ★')
+                                      : 'MODO INVITADO',
+                                  backgroundColor: const Color(0xFF333333),
+                                  textColor: isAuth ? AppColors.secondary : Colors.white70,
                                 ),
                               ],
                             ),
@@ -130,11 +166,11 @@ class ProfileScreen extends ConsumerWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildStatItem('28', 'RESERVAS'),
+                            _buildStatItem(isAuth ? '28' : '0', 'RESERVAS'),
                             Container(width: 1, height: 26, color: Colors.white12),
-                            _buildStatItem('64h', 'PARQUEADAS'),
+                            _buildStatItem(isAuth ? '64h' : '0h', 'PARQUEADAS'),
                             Container(width: 1, height: 26, color: Colors.white12),
-                            _buildStatItem('\$42.5K', 'AHORRO'),
+                            _buildStatItem(isAuth ? '\$42.5K' : '\$0', 'AHORRO'),
                           ],
                         ),
                       ),
@@ -176,54 +212,53 @@ class ProfileScreen extends ConsumerWidget {
               MotionUtils.staggerEntrance(
                 Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: PillButton(
-                            text: 'Iniciar sesión',
-                            variant: PillButtonVariant.dark,
-                            onPressed: () {
-                              ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                              context.go('/login');
-                            },
+                    if (!isAuth)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: PillButton(
+                              text: 'Iniciar sesión',
+                              variant: PillButtonVariant.dark,
+                              onPressed: () {
+                                context.push('/login');
+                              },
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: PillButton(
-                            text: 'Registrarse',
-                            variant: PillButtonVariant.primary,
-                            onPressed: () {
-                              ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                              context.go('/register');
-                            },
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: PillButton(
+                              text: 'Registrarse',
+                              variant: PillButtonVariant.primary,
+                              onPressed: () {
+                                context.push('/register');
+                              },
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    GestureDetector(
-                      onTap: () async {
-                        try {
-                          await ref.read(signOutUseCaseProvider).execute();
-                        } catch (_) {}
-                        ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
-                        if (context.mounted) {
-                          context.go('/login');
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Cerrar sesión en este dispositivo',
-                          style: AppTypography.bodyBold.copyWith(
-                            color: AppColors.error,
-                            decoration: TextDecoration.underline,
+                        ],
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () async {
+                          try {
+                            await ref.read(signOutUseCaseProvider).execute();
+                          } catch (_) {}
+                          ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
+                          if (context.mounted) {
+                            context.go('/home');
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Cerrar sesión en este dispositivo',
+                            style: AppTypography.bodyBold.copyWith(
+                              color: AppColors.error,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 index: 4,

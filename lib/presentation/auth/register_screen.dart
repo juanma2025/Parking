@@ -42,7 +42,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   void _exitToHome() {
-    ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+    ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
     if (context.canPop()) {
       context.pop();
     } else {

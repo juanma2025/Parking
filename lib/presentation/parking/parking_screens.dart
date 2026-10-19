@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../data/datasources/pasto_landmarks_data.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
 import '../shared/avatar_button.dart';
@@ -137,6 +138,9 @@ class ParkingDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lotId = GoRouterState.of(context).pathParameters['id'] ?? 'pasto-unicentro-1';
+    final lot = PastoDataService.getParkingLotById(lotId) ?? PastoDataService.getAllParkingLots().first;
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -154,23 +158,29 @@ class ParkingDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         StatusPill(
-                          text: '12 CUPOS LIBRES',
+                          text: '${lot.carSpaces} CARROS • ${lot.motoSpaces} MOTOS',
                           backgroundColor: AppColors.darkCard,
                           textColor: AppColors.secondary,
                         ),
-                        Text('★ 4.8 (124 reseñas)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        Text('★ ${lot.rating} (Reseñas)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Text('Hospital San José', style: AppTypography.display.copyWith(color: AppColors.darkCard, fontSize: 26)),
+                    Text(lot.name, style: AppTypography.display.copyWith(color: AppColors.darkCard, fontSize: 24)),
                     const SizedBox(height: 4),
-                    Text('Cra. 13 #72-40 • Chapinero • Abierto 24 Horas', style: AppTypography.body.copyWith(color: AppColors.darkCard.withAlpha(180))),
+                    Text(
+                      '${lot.address} • San Juan de Pasto • ${lot.openingHours}',
+                      style: AppTypography.body.copyWith(color: AppColors.darkCard.withAlpha(180)),
+                    ),
                     const SizedBox(height: 18),
-                    Text('\$3.500 / hora', style: AppTypography.title.copyWith(color: AppColors.darkCard, fontSize: 22)),
+                    Text(
+                      '${lot.formattedPrice} • A pie: ${lot.distanceMeters} m',
+                      style: AppTypography.title.copyWith(color: AppColors.darkCard, fontSize: 20),
+                    ),
                   ],
                 ),
               ),
@@ -183,12 +193,26 @@ class ParkingDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SectionLabel('SERVICIOS INCLUIDOS', color: Colors.white70),
+                    const SectionLabel('SERVICIOS Y COMODIDADES', color: Colors.white70),
                     const SizedBox(height: 12),
-                    _buildAmenity(Icons.roofing_rounded, 'Techado y seguro'),
-                    _buildAmenity(Icons.videocam_outlined, 'Cámaras de vigilancia 24/7'),
-                    _buildAmenity(Icons.local_car_wash_rounded, 'Lavado opcional de vehículos'),
-                    _buildAmenity(Icons.ev_station_rounded, 'Punto de carga eléctrica disponible'),
+                    _buildAmenity(
+                      Icons.roofing_rounded,
+                      lot.isCovered ? 'Instalación techada y protegida' : 'Parqueadero al aire libre con cerramiento',
+                    ),
+                    _buildAmenity(
+                      Icons.videocam_outlined,
+                      lot.hasSecurity ? 'Cámaras de vigilancia 24/7 y celador privado' : 'Vigilancia en horas de servicio',
+                    ),
+                    _buildAmenity(
+                      Icons.access_time_filled_rounded,
+                      'Horario de atención: ${lot.openingHours}',
+                    ),
+                    _buildAmenity(
+                      lot.hasCharging ? Icons.ev_station_rounded : Icons.two_wheeler_rounded,
+                      lot.hasCharging
+                          ? 'Punto de carga eléctrica para vehículos'
+                          : 'Zona exclusiva y señalizada para motos',
+                    ),
                   ],
                 ),
               ),
@@ -197,7 +221,7 @@ class ParkingDetailScreen extends StatelessWidget {
               PillButton(
                 text: 'Reservar cupo ahora',
                 variant: PillButtonVariant.dark,
-                onPressed: () => context.go('/reserve/mock-1'),
+                onPressed: () => context.go('/reserve/${lot.id}'),
               ),
               const SizedBox(height: 40),
             ],
@@ -214,7 +238,9 @@ class ParkingDetailScreen extends StatelessWidget {
         children: [
           Icon(icon, color: AppColors.secondary, size: 20),
           const SizedBox(width: 12),
-          Text(text, style: AppTypography.body.copyWith(color: AppColors.white)),
+          Expanded(
+            child: Text(text, style: AppTypography.body.copyWith(color: AppColors.white)),
+          ),
         ],
       ),
     );
@@ -236,6 +262,11 @@ class _ReserveScreenState extends State<ReserveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lotId = GoRouterState.of(context).pathParameters['id'] ?? 'pasto-unicentro-1';
+    final lot = PastoDataService.getParkingLotById(lotId) ?? PastoDataService.getAllParkingLots().first;
+    final total = _selectedHours * lot.pricePerHour.toInt();
+    final formattedTotal = '\$${total.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} COP';
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -243,9 +274,9 @@ class _ReserveScreenState extends State<ReserveScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSubHeader(context, title: 'Configurar Reserva', onBack: () => context.go('/home')),
+              _buildSubHeader(context, title: 'Configurar Reserva', onBack: () => context.go('/parking/${lot.id}')),
               const SizedBox(height: 20),
-              const SectionLabel('PARQUEADERO SAN JOSÉ'),
+              SectionLabel(lot.name.toUpperCase()),
               const SizedBox(height: 6),
               const TwoToneTitle(text: 'Confirma tu ', highlightText: 'estancia'),
               const SizedBox(height: 20),
@@ -283,7 +314,14 @@ class _ReserveScreenState extends State<ReserveScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    Text('Total a pagar: \$${_selectedHours * 3500} COP', style: AppTypography.title.copyWith(fontSize: 18, color: AppColors.darkCard)),
+                    Text(
+                      'Total a pagar: $formattedTotal',
+                      style: AppTypography.title.copyWith(fontSize: 18, color: AppColors.darkCard),
+                    ),
+                    Text(
+                      'Tarifa: ${lot.formattedPrice}',
+                      style: AppTypography.caption.copyWith(color: AppColors.darkCard.withAlpha(180)),
+                    ),
                   ],
                 ),
               ),
@@ -292,7 +330,7 @@ class _ReserveScreenState extends State<ReserveScreen> {
               PillButton(
                 text: 'Confirmar y generar pase',
                 variant: PillButtonVariant.dark,
-                onPressed: () => context.go('/confirmation'),
+                onPressed: () => context.go('/confirmation?lot=${lot.id}'),
               ),
             ],
           ),
@@ -310,6 +348,9 @@ class ConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lotId = GoRouterState.of(context).uri.queryParameters['lot'] ?? 'pasto-unicentro-1';
+    final lot = PastoDataService.getParkingLotById(lotId) ?? PastoDataService.getAllParkingLots().first;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -328,7 +369,7 @@ class ConfirmationScreen extends StatelessWidget {
               const TwoToneTitle(text: '¡Reserva ', highlightText: 'confirmada!'),
               const SizedBox(height: 10),
               Text(
-                'Tu cupo #A-14 en Parqueadero San José está listo. Puedes ingresar ahora.',
+                'Tu cupo #A-14 en ${lot.name} (${lot.address}, Pasto) está listo. Puedes ingresar ahora.',
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(color: AppColors.textSecondaryLight),
               ),
