@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/motion_utils.dart';
 
 enum AppCardVariant {
   cream,
@@ -64,13 +65,11 @@ class AppCard extends StatelessWidget {
     );
 
     if (onTap != null) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppDimensions.radiusCard),
-          child: card,
-        ),
+      return MotionUtils.pressable(
+        onTap: onTap,
+        pressedScale: 0.98,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusCard),
+        child: card,
       );
     }
 

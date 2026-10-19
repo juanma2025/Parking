@@ -12,7 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'helpers/fake_auth_repository.dart';
 
 void main() {
-  testWidgets('Router redirects guest to login', (WidgetTester tester) async {
+  testWidgets('Router opens HomeScreen by default and redirects guest when accessing protected route', (WidgetTester tester) async {
     final container = ProviderContainer(
       overrides: [
         currentUserRoleProvider.overrideWithValue(UserRole.guest),
@@ -30,6 +30,12 @@ void main() {
       ),
     );
     
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.text('¿QUÉ OPCIONES TIENES?'), findsOneWidget);
+
+    // Protected route redirect
+    router.go('/my-reservations');
     await tester.pumpAndSettle();
     expect(find.byType(LoginScreen), findsOneWidget);
   });
@@ -70,7 +76,7 @@ void main() {
     expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
   });
 
-  testWidgets('Unauthenticated user on HomeScreen sees animated auth actions and no hamburger menu', (WidgetTester tester) async {
+  testWidgets('Unauthenticated user on HomeScreen sees animated auth actions, no bottom bar, no map, and no hamburger menu', (WidgetTester tester) async {
     final container = ProviderContainer(
       overrides: [
         currentUserRoleProvider.overrideWithValue(UserRole.guest),
@@ -89,15 +95,6 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    expect(find.byType(LoginScreen), findsOneWidget);
-
-    // Tap exit / explore to go to HomeScreen
-    final exitBtn = find.byTooltip('Volver a explorar');
-    expect(exitBtn, findsOneWidget);
-    await tester.tap(exitBtn);
-    await tester.pumpAndSettle();
-
-    // Verify on HomeScreen
     expect(find.byType(HomeScreen), findsOneWidget);
 
     // Verify hamburger menu button is NOT present when unauthenticated!
@@ -135,10 +132,6 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    // Exit login to explore on HomeScreen
-    await tester.tap(find.byTooltip('Volver a explorar'));
-    await tester.pumpAndSettle();
-
     expect(find.byType(HomeScreen), findsOneWidget);
 
     // Tap Iniciar sesión in AnimatedAuthActions
@@ -170,6 +163,8 @@ void main() {
       ),
     );
 
+    await tester.pumpAndSettle();
+    router.go('/login');
     await tester.pumpAndSettle();
     expect(find.byType(LoginScreen), findsOneWidget);
 
@@ -206,12 +201,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    expect(find.byType(LoginScreen), findsOneWidget);
-
-    // Navigate to register screen
-    final registerLink = find.text('Crear cuenta');
-    expect(registerLink, findsOneWidget);
-    await tester.tap(registerLink);
+    router.go('/register');
     await tester.pumpAndSettle();
     expect(find.text('Register Account'), findsOneWidget);
 
@@ -249,9 +239,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-
-    // Go to register screen
-    await tester.tap(find.text('Crear cuenta'));
+    router.go('/register');
     await tester.pumpAndSettle();
 
     // Enter registration fields
@@ -310,9 +298,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-
-    // Go to register screen
-    await tester.tap(find.text('Crear cuenta'));
+    router.go('/register');
     await tester.pumpAndSettle();
 
     // Select "Tengo parqueadero"

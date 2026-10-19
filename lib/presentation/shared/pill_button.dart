@@ -95,19 +95,27 @@ class _PillButtonState extends State<PillButton> with SingleTickerProviderStateM
               valueColor: AlwaysStoppedAnimation<Color>(fgColor),
             ),
           )
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (widget.icon != null) ...[
-                widget.icon!,
-                const SizedBox(width: 8),
+        : Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (widget.icon != null) ...[
+                  widget.icon!,
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      widget.text,
+                      style: AppTypography.button.copyWith(color: fgColor),
+                    ),
+                  ),
+                ),
               ],
-              Text(
-                widget.text,
-                style: AppTypography.button.copyWith(color: fgColor),
-              ),
-            ],
+            ),
           );
 
     return AnimatedScale(

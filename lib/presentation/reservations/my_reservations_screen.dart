@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/motion_utils.dart';
+import 'reservations_provider.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
 import '../shared/avatar_button.dart';
@@ -25,6 +26,9 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final activeReservations = ref.watch(userReservationsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       drawer: const AppDrawer(),
       body: SafeArea(
@@ -42,19 +46,22 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: AppColors.white,
+                        color: isDark ? AppColors.darkCard : AppColors.white,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Builder(
                         builder: (ctx) => IconButton(
-                          icon: const Icon(Icons.menu_rounded, color: AppColors.darkCard),
+                          icon: Icon(Icons.menu_rounded, color: isDark ? AppColors.white : AppColors.darkCard),
                           onPressed: () => Scaffold.of(ctx).openDrawer(),
                         ),
                       ),
                     ),
                     Text(
                       'Mis Reservas',
-                      style: AppTypography.title.copyWith(fontSize: 18),
+                      style: AppTypography.title.copyWith(
+                        fontSize: 18,
+                        color: isDark ? AppColors.white : AppColors.darkCard,
+                      ),
                     ),
                     AvatarButton(
                       onTap: () => context.go('/profile'),
@@ -66,12 +73,15 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
               const SizedBox(height: 20),
 
               MotionUtils.staggerEntrance(
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SectionLabel('GESTIÓN DE ESTANCIAS'),
-                    SizedBox(height: 6),
-                    TwoToneTitle(
+                    SectionLabel(
+                      'GESTIÓN DE ESTANCIAS',
+                      color: isDark ? AppColors.secondary : null,
+                    ),
+                    const SizedBox(height: 6),
+                    const TwoToneTitle(
                       text: 'Tus ',
                       highlightText: 'reservas',
                     ),
@@ -83,7 +93,7 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
 
               MotionUtils.staggerEntrance(
                 TextTabs(
-                  tabs: const ['ACTIVAS (2)', 'HISTORIAL (3)'],
+                  tabs: ['ACTIVAS (${activeReservations.length})', 'HISTORIAL (3)'],
                   selectedIndex: _selectedTab,
                   onTabSelected: (index) => setState(() => _selectedTab = index),
                 ),
@@ -92,173 +102,72 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
               const SizedBox(height: 20),
 
               if (_selectedTab == 0) ...[
-                // Card 1: Active In-Progress (Dark Stitch Card)
-                MotionUtils.staggerEntrance(
-                  AppCard(
-                    variant: AppCardVariant.dark,
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                if (activeReservations.isEmpty)
+                  MotionUtils.staggerEntrance(
+                    AppCard(
+                      variant: AppCardVariant.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+                      child: Center(
+                        child: Column(
                           children: [
-                            const StatusPill(
-                              text: 'EN CURSO • 42 MIN',
-                              backgroundColor: Color(0xFF2E7D32),
-                              textColor: AppColors.white,
-                              dotColor: Color(0xFF81C784),
-                            ),
-                            Text(
-                              'A 120 m',
-                              style: AppTypography.caption.copyWith(color: Colors.white70),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Parqueadero San José',
-                          style: AppTypography.title.copyWith(color: AppColors.white, fontSize: 20),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Cra. 13 #72-40 • Chapinero Central',
-                          style: AppTypography.caption.copyWith(color: Colors.white60),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Metric Pills Row
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF333333),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildCardStat('CUPO', '#A-14', isLight: true),
-                              Container(width: 1, height: 26, color: Colors.white24),
-                              _buildCardStat('ENTRADA', '10:30 AM', isLight: true),
-                              Container(width: 1, height: 26, color: Colors.white24),
-                              _buildCardStat('ACUMULADO', '\$7.000 COP', isLight: true, highlight: true),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: PillButton(
-                                text: 'Extender tiempo (+1h)',
-                                variant: PillButtonVariant.primary,
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Tiempo extendido con éxito (+1 hora)')),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
                             Container(
-                              width: 50,
-                              height: 50,
+                              width: 60,
+                              height: 60,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF333333),
-                                borderRadius: BorderRadius.circular(16),
+                                color: AppColors.secondary.withAlpha(isDark ? 60 : 50),
+                                shape: BoxShape.circle,
                               ),
-                              child: IconButton(
-                                icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.secondary),
-                                onPressed: () => _showQrModal(context, 'RES-84920'),
-                              ),
+                              child: const Icon(Icons.confirmation_number_outlined, size: 30, color: AppColors.secondary),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  index: 3,
-                ),
-                const SizedBox(height: 16),
-
-                // Card 2: Upcoming Reservation (Amber Card)
-                MotionUtils.staggerEntrance(
-                  AppCard(
-                    variant: AppCardVariant.amber,
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const StatusPill(
-                              text: 'PROGRAMADA • HOY 3:00 PM',
-                              backgroundColor: Color(0xFFE5A642),
-                              textColor: AppColors.darkCard,
-                              dotColor: AppColors.darkCard,
-                            ),
+                            const SizedBox(height: 16),
                             Text(
-                              'Cupo B-08',
-                              style: AppTypography.caption.copyWith(
-                                color: AppColors.darkCard,
-                                fontWeight: FontWeight.w700,
+                              'Sin reservas activas',
+                              style: AppTypography.title.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? AppColors.white : const Color(0xFF0F172A),
                               ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Aún no tienes estancias activas en San Juan de Pasto. Selecciona un parqueadero (Unicentro, Nova Centro, Único Outlet) para reservar tu cupo y generar tu pase QR.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.body.copyWith(
+                                color: isDark ? Colors.white.withAlpha(200) : AppColors.textSecondaryLight,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            PillButton(
+                              text: 'Explorar parqueaderos en Pasto',
+                              variant: isDark ? PillButtonVariant.primary : PillButtonVariant.dark,
+                              onPressed: () => context.go('/home'),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Clínica del Country - Garaje B',
-                          style: AppTypography.title.copyWith(color: AppColors.darkCard, fontSize: 19),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Cra. 16 #82-29 • Chicó Norte',
-                          style: AppTypography.caption.copyWith(color: AppColors.darkCard.withAlpha(180)),
-                        ),
-                        const SizedBox(height: 16),
-
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: AppColors.white.withAlpha(200),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildCardStat('ESTANCIA', '3:00 - 5:00 PM'),
-                              Container(width: 1, height: 26, color: Colors.black12),
-                              _buildCardStat('VEHÍCULO', 'ABC-123'),
-                              Container(width: 1, height: 26, color: Colors.black12),
-                              _buildCardStat('TOTAL', '\$12.000 COP', highlight: true),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        PillButton(
-                          text: 'Ver detalles de llegada',
-                          variant: PillButtonVariant.dark,
-                          onPressed: () => context.go('/confirmation'),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  index: 4,
-                ),
+                    index: 3,
+                  )
+                else
+                  for (int i = 0; i < activeReservations.length; i++) ...[
+                    MotionUtils.staggerEntrance(
+                      _buildActiveReservationCard(context, activeReservations[i]),
+                      index: 3 + i,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
               ] else ...[
-                // History Tab Cards
+                // History Tab Cards (Pasto)
                 MotionUtils.staggerEntrance(
                   _buildHistoryCard(
                     context,
-                    title: 'Centro Comercial Andino',
+                    title: 'Parqueadero Unicentro Plaza',
                     date: 'Ayer, 4:15 PM',
-                    duration: '2h 15m',
-                    cost: '\$15.000 COP',
-                    spot: 'Sótano 2 • #14',
+                    duration: '2h',
+                    cost: '\$5.000 COP',
+                    spot: 'Av. Panamericana • Cupo #14',
+                    isDark: isDark,
                   ),
                   index: 3,
                 ),
@@ -266,11 +175,12 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
                 MotionUtils.staggerEntrance(
                   _buildHistoryCard(
                     context,
-                    title: 'Parque de la 93 Parking',
-                    date: '10 Oct 2026',
-                    duration: '4h 00m',
-                    cost: '\$24.000 COP',
-                    spot: 'Piso 1 • #03',
+                    title: 'Parqueadero Pasaje Nova',
+                    date: '14 Oct 2026',
+                    duration: '3h',
+                    cost: '\$9.000 COP',
+                    spot: 'Calle 19 # 25-22 • Cupo #12',
+                    isDark: isDark,
                   ),
                   index: 4,
                 ),
@@ -283,6 +193,158 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
     );
   }
 
+  Widget _buildActiveReservationCard(BuildContext context, ActiveReservationItem item) {
+    final isAmber = item.id == 'RES-31940';
+
+    if (isAmber) {
+      return AppCard(
+        variant: AppCardVariant.amber,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                StatusPill(
+                  text: item.statusText,
+                  backgroundColor: const Color(0xFFE5A642),
+                  textColor: AppColors.darkCard,
+                  dotColor: AppColors.darkCard,
+                ),
+                Text(
+                  item.spotNumber,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.darkCard,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              item.parkingLotName,
+              style: AppTypography.title.copyWith(color: AppColors.darkCard, fontSize: 19),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.address,
+              style: AppTypography.caption.copyWith(color: AppColors.darkCard.withAlpha(180)),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.white.withAlpha(200),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildCardStat('ESTANCIA', '3:00 - 5:00 PM'),
+                  Container(width: 1, height: 26, color: Colors.black12),
+                  _buildCardStat('VEHÍCULO', 'ABC-123'),
+                  Container(width: 1, height: 26, color: Colors.black12),
+                  _buildCardStat('TOTAL', item.formattedTotal, highlight: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            PillButton(
+              text: 'Ver detalles de llegada',
+              variant: PillButtonVariant.dark,
+              onPressed: () => context.go('/confirmation'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Active in-progress or newly made reservation: Dark Card
+    return AppCard(
+      variant: AppCardVariant.dark,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              StatusPill(
+                text: item.statusText,
+                backgroundColor: item.isRecent ? const Color(0xFF1B5E20) : const Color(0xFF2E7D32),
+                textColor: AppColors.white,
+                dotColor: const Color(0xFF81C784),
+              ),
+              Text(
+                item.isRecent ? 'Confirmada hoy' : 'A 120 m',
+                style: AppTypography.caption.copyWith(color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            item.parkingLotName,
+            style: AppTypography.title.copyWith(color: AppColors.white, fontSize: 20),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.address,
+            style: AppTypography.caption.copyWith(color: Colors.white60),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF333333),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildCardStat('CUPO', item.spotNumber, isLight: true),
+                Container(width: 1, height: 26, color: Colors.white24),
+                _buildCardStat('HORA', item.entryTime, isLight: true),
+                Container(width: 1, height: 26, color: Colors.white24),
+                _buildCardStat('TOTAL', item.formattedTotal, isLight: true, highlight: true),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: PillButton(
+                  text: 'Extender tiempo (+1h)',
+                  variant: PillButtonVariant.primary,
+                  onPressed: () {
+                    ref.read(userReservationsProvider.notifier).extendReservation(item.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Tiempo extendido con éxito (+1 hora)')),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF333333),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.secondary),
+                  onPressed: () => _showQrModal(context, item.qrCode),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHistoryCard(
     BuildContext context, {
     required String title,
@@ -290,6 +352,7 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
     required String duration,
     required String cost,
     required String spot,
+    required bool isDark,
   }) {
     return AppCard(
       variant: AppCardVariant.white,
@@ -300,29 +363,50 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const StatusPill(
+              StatusPill(
                 text: 'FINALIZADA',
-                backgroundColor: Color(0xFFEEEEEE),
-                textColor: Color(0xFF666666),
+                backgroundColor: isDark ? const Color(0xFF2E2E2E) : const Color(0xFFEEEEEE),
+                textColor: isDark ? Colors.white70 : const Color(0xFF666666),
               ),
               Text(
                 date,
-                style: AppTypography.caption.copyWith(color: AppColors.textSecondaryLight),
+                style: AppTypography.caption.copyWith(
+                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(title, style: AppTypography.title.copyWith(fontSize: 17)),
+          Text(
+            title,
+            style: AppTypography.title.copyWith(
+              fontSize: 17,
+              color: isDark ? AppColors.white : const Color(0xFF0F172A),
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(spot, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryLight)),
+          Text(
+            spot,
+            style: AppTypography.caption.copyWith(
+              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            ),
+          ),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Tiempo: $duration', style: AppTypography.body),
+              Text(
+                'Tiempo: $duration',
+                style: AppTypography.body.copyWith(
+                  color: isDark ? Colors.white70 : AppColors.darkCard,
+                ),
+              ),
               Text(
                 cost,
-                style: AppTypography.bodyBold.copyWith(color: AppColors.darkCard, fontSize: 16),
+                style: AppTypography.bodyBold.copyWith(
+                  color: isDark ? AppColors.secondary : AppColors.darkCard,
+                  fontSize: 16,
+                ),
               ),
             ],
           ),

@@ -36,14 +36,16 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     refreshListenable: notifier,
-    initialLocation: '/login',
+    initialLocation: '/home',
     redirect: (context, state) {
       final isAuth = ref.read(isAuthenticatedProvider);
       final role = ref.read(currentUserRoleProvider);
 
-      final isAuthRoute = state.uri.path == '/login' || 
-                          state.uri.path == '/register' || 
-                          state.uri.path.startsWith('/register/');
+      final isLoginRoute = state.uri.path == '/login';
+      final isRegisterRoute = state.uri.path == '/register';
+
+      final isSetupRoute = state.uri.path == '/register/vehicle-setup' ||
+                           state.uri.path == '/register/parking-setup';
 
       final isPublicRoute = state.uri.path == '/home' || 
                             state.uri.path == '/profile' || 
@@ -52,22 +54,27 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 1. If not authenticated:
       if (!isAuth) {
-        // Freely allow auth screens (/login, /register) and public exploration screens (/home, /profile, /parking-detail)
-        if (isAuthRoute || isPublicRoute) {
+        // Freely allow auth entry screens, onboarding setup, and public exploration screens
+        if (isLoginRoute || isRegisterRoute || isSetupRoute || isPublicRoute) {
           return null;
         }
         // Protected screens require login
         return '/login';
       }
 
-      // 2. If authenticated and visiting login or register, route to appropriate role home
-      if (isAuthRoute) {
+      // 2. Allow onboarding setup routes and active register flow while authenticated
+      if (isSetupRoute || isRegisterRoute) {
+        return null;
+      }
+
+      // 3. If authenticated and visiting login screen, route to appropriate role home
+      if (isLoginRoute) {
         if (role == UserRole.parkingOwner) return '/owner-summary';
         if (role == UserRole.admin) return '/admin';
         return '/home';
       }
 
-      // 3. Role-based guards for authenticated users
+      // 4. Role-based guards for authenticated users
       if (state.uri.path.startsWith('/admin') && role != UserRole.admin) return '/home';
       if (state.uri.path.startsWith('/owner-') && role != UserRole.parkingOwner) return '/home';
 

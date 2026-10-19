@@ -95,9 +95,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (mounted) {
         ref.read(userRoleStateProvider.notifier).setRole(_selectedRole);
         if (_selectedRole == UserRole.parkingOwner) {
-          context.push('/register/parking-setup');
+          context.go('/register/parking-setup');
         } else {
-          context.push('/register/vehicle-setup');
+          context.go('/register/vehicle-setup');
         }
       }
     } on Failure catch (e) {

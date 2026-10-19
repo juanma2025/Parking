@@ -201,7 +201,7 @@ class _ParkingSetupScreenState extends ConsumerState<ParkingSetupScreen> {
               // Input: Location / Address
               AppTextField(
                 label: 'UBICACIÓN',
-                hintText: 'ej. Calle 72 # 11-45, Chapinero',
+                hintText: 'ej. Calle 19 # 25-06, Centro, Pasto',
                 controller: _addressController,
                 fillColor: AppColors.darkCard,
                 textColor: AppColors.white,

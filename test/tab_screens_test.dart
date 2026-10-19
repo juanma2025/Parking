@@ -11,7 +11,7 @@ import 'package:parking_app/presentation/vehicles/vehicles_screen.dart';
 
 void main() {
   group('Tab Informative Cards Tests', () {
-    testWidgets('MyReservationsScreen renders active reservation cards', (tester) async {
+    testWidgets('MyReservationsScreen renders active reservation cards or empty state', (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -23,9 +23,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Mis Reservas'), findsOneWidget);
-      expect(find.text('Parqueadero San José'), findsOneWidget);
-      expect(find.text('Clínica del Country - Garaje B'), findsOneWidget);
-      expect(find.text('EN CURSO • 42 MIN'), findsOneWidget);
+      expect(find.text('Sin reservas activas'), findsOneWidget);
+      expect(find.text('Explorar parqueaderos en Pasto'), findsOneWidget);
     });
 
     testWidgets('VehiclesScreen renders vehicle informative cards', (tester) async {
@@ -46,7 +45,7 @@ void main() {
       expect(find.text('Yamaha MT-03 2024'), findsOneWidget);
     });
 
-    testWidgets('PaymentsScreen renders balance and transaction cards', (tester) async {
+    testWidgets('PaymentsScreen renders QR payment info and pasto guidance', (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -57,10 +56,10 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Billetera y Pagos'), findsOneWidget);
-      expect(find.text('\$48.500 COP'), findsOneWidget);
-      expect(find.text('+ Recargar saldo'), findsOneWidget);
-      expect(find.text('VISA'), findsOneWidget);
+      expect(find.text('Pases y Pagos'), findsOneWidget);
+      expect(find.text('Pago Presencial con QR'), findsOneWidget);
+      expect(find.text('¿CÓMO FUNCIONA EL PAGO EN PASTO?'), findsOneWidget);
+      expect(find.text('Buscar parqueadero en Pasto'), findsOneWidget);
     });
 
     testWidgets('AlertsScreen renders notification cards', (tester) async {
@@ -76,7 +75,7 @@ void main() {
 
       expect(find.text('Notificaciones'), findsOneWidget);
       expect(find.text('¡Tiempo de reserva por vencer!'), findsOneWidget);
-      expect(find.text('Reserva asegurada en Clínica del Country'), findsOneWidget);
+      expect(find.text('Reserva asegurada en Parqueadero Unicentro Plaza'), findsOneWidget);
     });
 
     testWidgets('AppDrawer renders Apple style navigation in guest mode', (tester) async {

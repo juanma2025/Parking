@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/motion_utils.dart';
 import '../../data/datasources/pasto_landmarks_data.dart';
+import '../reservations/reservations_provider.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
 import '../shared/avatar_button.dart';
@@ -250,14 +253,14 @@ class ParkingDetailScreen extends StatelessWidget {
 // ============================================================================
 // RESERVE SCREEN (/reserve/:id)
 // ============================================================================
-class ReserveScreen extends StatefulWidget {
+class ReserveScreen extends ConsumerStatefulWidget {
   const ReserveScreen({super.key});
 
   @override
-  State<ReserveScreen> createState() => _ReserveScreenState();
+  ConsumerState<ReserveScreen> createState() => _ReserveScreenState();
 }
 
-class _ReserveScreenState extends State<ReserveScreen> {
+class _ReserveScreenState extends ConsumerState<ReserveScreen> {
   int _selectedHours = 2;
 
   @override
@@ -281,7 +284,7 @@ class _ReserveScreenState extends State<ReserveScreen> {
               const TwoToneTitle(text: 'Confirma tu ', highlightText: 'estancia'),
               const SizedBox(height: 20),
 
-              // Hours Selector (Amber Card)
+              // Hours Selector (Amber Card with evenly distributed hours, zero overflow)
               AppCard(
                 variant: AppCardVariant.amber,
                 padding: const EdgeInsets.all(20),
@@ -291,22 +294,39 @@ class _ReserveScreenState extends State<ReserveScreen> {
                     Text('DURACIÓN ESTIMADA', style: AppTypography.sectionLabel.copyWith(color: AppColors.darkCard)),
                     const SizedBox(height: 14),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [1, 2, 3, 4].map((h) {
                         final isSel = _selectedHours == h;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedHours = h),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isSel ? AppColors.darkCard : AppColors.white,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              '$h hora${h > 1 ? 's' : ''}',
-                              style: TextStyle(
-                                color: isSel ? AppColors.white : AppColors.darkCard,
-                                fontWeight: FontWeight.w700,
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: MotionUtils.pressable(
+                              onTap: () => setState(() => _selectedHours = h),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSel ? AppColors.darkCard : AppColors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withAlpha(isSel ? 20 : 6),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    '$h hora${h > 1 ? 's' : ''}',
+                                    style: TextStyle(
+                                      color: isSel ? AppColors.white : AppColors.darkCard,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -330,7 +350,15 @@ class _ReserveScreenState extends State<ReserveScreen> {
               PillButton(
                 text: 'Confirmar y generar pase',
                 variant: PillButtonVariant.dark,
-                onPressed: () => context.go('/confirmation?lot=${lot.id}'),
+                onPressed: () {
+                  ref.read(userReservationsProvider.notifier).addReservation(
+                    parkingLotName: lot.name,
+                    address: '${lot.address}, Pasto',
+                    hours: _selectedHours,
+                    formattedTotal: formattedTotal,
+                  );
+                  context.go('/confirmation?lot=${lot.id}');
+                },
               ),
             ],
           ),
@@ -343,13 +371,17 @@ class _ReserveScreenState extends State<ReserveScreen> {
 // ============================================================================
 // CONFIRMATION SCREEN (/confirmation)
 // ============================================================================
-class ConfirmationScreen extends StatelessWidget {
+class ConfirmationScreen extends ConsumerWidget {
   const ConfirmationScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final lotId = GoRouterState.of(context).uri.queryParameters['lot'] ?? 'pasto-unicentro-1';
     final lot = PastoDataService.getParkingLotById(lotId) ?? PastoDataService.getAllParkingLots().first;
+    final reservations = ref.watch(userReservationsProvider);
+    final currentRes = reservations.isNotEmpty ? reservations.first : null;
+    final qrCode = currentRes?.qrCode ?? 'QR-PAS-PASTO';
+    final spotNumber = currentRes?.spotNumber ?? '#P-01';
 
     return Scaffold(
       body: SafeArea(
@@ -369,7 +401,7 @@ class ConfirmationScreen extends StatelessWidget {
               const TwoToneTitle(text: '¡Reserva ', highlightText: 'confirmada!'),
               const SizedBox(height: 10),
               Text(
-                'Tu cupo #A-14 en ${lot.name} (${lot.address}, Pasto) está listo. Puedes ingresar ahora.',
+                'Tu cupo $spotNumber en ${lot.name} (${lot.address}, Pasto) está confirmado. Presenta este código QR al operador del parqueadero para validar tu entrada y realizar el pago en taquilla.',
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(color: AppColors.textSecondaryLight),
               ),
@@ -382,7 +414,7 @@ class ConfirmationScreen extends StatelessWidget {
                   children: [
                     const Icon(Icons.qr_code_2_rounded, size: 140, color: AppColors.secondary),
                     const SizedBox(height: 12),
-                    Text('CÓDIGO: RES-84920', style: AppTypography.bodyBold.copyWith(color: AppColors.white)),
+                    Text('CÓDIGO: $qrCode', style: AppTypography.bodyBold.copyWith(color: AppColors.white)),
                   ],
                 ),
               ),

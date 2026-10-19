@@ -168,12 +168,12 @@ class AppDrawer extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // 2. Main Services (iOS Inset Grouped List)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8, bottom: 8),
+                  // 2. Main Services (iOS Inset Grouped List - Role Adaptive)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, bottom: 8),
                     child: Text(
-                      'SERVICIOS',
-                      style: TextStyle(
+                      currentRole == UserRole.parkingOwner ? 'GESTIÓN DE PARQUEADERO' : 'SERVICIOS',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF8E8E93),
@@ -197,77 +197,158 @@ class AppDrawer extends ConsumerWidget {
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
-                        _buildAppleMenuItem(
-                          context: context,
-                          icon: Icons.explore_rounded,
-                          iconColor: const Color(0xFF007AFF), // Apple Blue
-                          title: 'Explorar Parqueaderos',
-                          subtitle: 'Mapa interactivo y búsqueda',
-                          onTap: () {
-                            Navigator.pop(context);
-                            ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-                            context.go('/home');
-                          },
-                        ),
-                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
-                        _buildAppleMenuItem(
-                          context: context,
-                          icon: Icons.calendar_month_rounded,
-                          iconColor: const Color(0xFFFF9500), // Apple Orange
-                          title: 'Mis Reservas',
-                          subtitle: 'Activas e historial',
-                          badge: '1 activa',
-                          badgeBgColor: const Color(0xFFFFF3E0),
-                          badgeTextColor: const Color(0xFFE65100),
-                          onTap: () {
-                            Navigator.pop(context);
-                            ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-                            context.go('/my-reservations');
-                          },
-                        ),
-                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
-                        _buildAppleMenuItem(
-                          context: context,
-                          icon: Icons.directions_car_rounded,
-                          iconColor: const Color(0xFF34C759), // Apple Green
-                          title: 'Mis Vehículos',
-                          subtitle: 'Placas y categorías',
-                          badge: '2 autos',
-                          badgeBgColor: const Color(0xFFF2F2F7),
-                          badgeTextColor: const Color(0xFF636366),
-                          onTap: () {
-                            Navigator.pop(context);
-                            ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
-                            context.go('/vehicles');
-                          },
-                        ),
-                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
-                        _buildAppleMenuItem(
-                          context: context,
-                          icon: Icons.credit_card_rounded,
-                          iconColor: const Color(0xFF5856D6), // Apple Indigo
-                          title: 'Pagos y Billetera',
-                          subtitle: 'Saldo prepago y métodos',
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.go('/payments');
-                          },
-                        ),
-                        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
-                        _buildAppleMenuItem(
-                          context: context,
-                          icon: Icons.notifications_rounded,
-                          iconColor: const Color(0xFFFF3B30), // Apple Red
-                          title: 'Alertas y Mensajes',
-                          subtitle: 'Novedades y avisos',
-                          badge: '3 nuevas',
-                          badgeBgColor: const Color(0xFFFF3B30),
-                          badgeTextColor: Colors.white,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.go('/alerts');
-                          },
-                        ),
+                        if (currentRole == UserRole.parkingOwner) ...[
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.dashboard_rounded,
+                            iconColor: const Color(0xFF007AFF), // Apple Blue
+                            title: 'Panel de Anfitrión',
+                            subtitle: 'Resumen de garaje e ingresos',
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/owner-summary');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.local_parking_rounded,
+                            iconColor: const Color(0xFFFF9500), // Apple Orange
+                            title: 'Espacios y Cupos',
+                            subtitle: 'Monitor de bahías en tiempo real',
+                            badge: '6 cupos',
+                            badgeBgColor: const Color(0xFFFFF3E0),
+                            badgeTextColor: const Color(0xFFE65100),
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/owner-spaces');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.qr_code_scanner_rounded,
+                            iconColor: const Color(0xFF34C759), // Apple Green
+                            title: 'Reservas Recibidas',
+                            subtitle: 'Pases QR y control en taquilla',
+                            badge: '2 activas',
+                            badgeBgColor: const Color(0xFFE8F5E9),
+                            badgeTextColor: const Color(0xFF2E7D32),
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/owner-reservations');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.credit_card_rounded,
+                            iconColor: const Color(0xFF5856D6), // Apple Indigo
+                            title: 'Pagos y Billetera',
+                            subtitle: 'Pases QR y recaudación',
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/payments');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.notifications_rounded,
+                            iconColor: const Color(0xFFFF3B30), // Apple Red
+                            title: 'Alertas y Mensajes',
+                            subtitle: 'Novedades y avisos',
+                            badge: '3 nuevas',
+                            badgeBgColor: const Color(0xFFFF3B30),
+                            badgeTextColor: Colors.white,
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/alerts');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.directions_car_rounded,
+                            iconColor: const Color(0xFF8E8E93),
+                            title: 'Modo Conductor',
+                            subtitle: 'Explorar otros parqueaderos',
+                            onTap: () {
+                              Navigator.pop(context);
+                              ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+                              context.go('/home');
+                            },
+                          ),
+                        ] else ...[
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.explore_rounded,
+                            iconColor: const Color(0xFF007AFF), // Apple Blue
+                            title: 'Explorar Parqueaderos',
+                            subtitle: 'Mapa interactivo y búsqueda',
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/home');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.calendar_month_rounded,
+                            iconColor: const Color(0xFFFF9500), // Apple Orange
+                            title: 'Mis Reservas',
+                            subtitle: 'Activas e historial',
+                            badge: '1 activa',
+                            badgeBgColor: const Color(0xFFFFF3E0),
+                            badgeTextColor: const Color(0xFFE65100),
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/my-reservations');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.directions_car_rounded,
+                            iconColor: const Color(0xFF34C759), // Apple Green
+                            title: 'Mis Vehículos',
+                            subtitle: 'Placas y categorías',
+                            badge: '2 autos',
+                            badgeBgColor: const Color(0xFFF2F2F7),
+                            badgeTextColor: const Color(0xFF636366),
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/vehicles');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.credit_card_rounded,
+                            iconColor: const Color(0xFF5856D6), // Apple Indigo
+                            title: 'Pagos y Billetera',
+                            subtitle: 'Pases QR y pago en taquilla',
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/payments');
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA), indent: 54, endIndent: 12),
+                          _buildAppleMenuItem(
+                            context: context,
+                            icon: Icons.notifications_rounded,
+                            iconColor: const Color(0xFFFF3B30), // Apple Red
+                            title: 'Alertas y Mensajes',
+                            subtitle: 'Novedades y avisos',
+                            badge: '3 nuevas',
+                            badgeBgColor: const Color(0xFFFF3B30),
+                            badgeTextColor: Colors.white,
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/alerts');
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -413,11 +494,13 @@ class AppDrawer extends ConsumerWidget {
                   ? InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () async {
+                        final signOutUseCase = ref.read(signOutUseCaseProvider);
+                        final roleNotifier = ref.read(userRoleStateProvider.notifier);
                         Navigator.pop(context);
                         try {
-                          await ref.read(signOutUseCaseProvider).execute();
+                          await signOutUseCase.execute();
                         } catch (_) {}
-                        ref.read(userRoleStateProvider.notifier).setRole(UserRole.guest);
+                        roleNotifier.setRole(UserRole.guest);
                         if (context.mounted) {
                           context.go('/home');
                         }

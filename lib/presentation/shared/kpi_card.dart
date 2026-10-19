@@ -12,6 +12,7 @@ class KpiCard extends StatelessWidget {
   final AppCardVariant variant;
   final Widget? icon;
   final Duration duration;
+  final VoidCallback? onTap;
 
   const KpiCard({
     super.key,
@@ -22,6 +23,7 @@ class KpiCard extends StatelessWidget {
     this.variant = AppCardVariant.white,
     this.icon,
     this.duration = const Duration(milliseconds: 600),
+    this.onTap,
   });
 
   @override
@@ -31,6 +33,8 @@ class KpiCard extends StatelessWidget {
 
     return AppCard(
       variant: variant,
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -38,14 +42,19 @@ class KpiCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SectionLabel(
-                label,
-                color: isDarkCard ? AppColors.darkSecondaryText : AppColors.textSecondaryLight,
+              Expanded(
+                child: SectionLabel(
+                  label,
+                  color: isDarkCard ? AppColors.darkSecondaryText : AppColors.textSecondaryLight,
+                ),
               ),
-              ?icon,
+              if (icon != null) ...[
+                const SizedBox(width: 4),
+                icon!,
+              ],
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           TweenAnimationBuilder<double>(
             tween: Tween<double>(begin: 0.0, end: value.toDouble()),
             duration: duration,
@@ -55,11 +64,15 @@ class KpiCard extends StatelessWidget {
                   ? val.round().toString()
                   : val.toStringAsFixed(1);
 
-              return Text(
-                '${prefix ?? ''}$formattedNumber${suffix ?? ''}',
-                style: AppTypography.display.copyWith(
-                  color: textColor,
-                  fontSize: 28,
+              return FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${prefix ?? ''}$formattedNumber${suffix ?? ''}',
+                  style: AppTypography.display.copyWith(
+                    color: textColor,
+                    fontSize: 28,
+                  ),
                 ),
               );
             },

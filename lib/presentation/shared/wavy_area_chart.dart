@@ -10,6 +10,7 @@ class WavyAreaChart extends StatelessWidget {
   final String? subtitle;
   final List<double> values;
   final double height;
+  final VoidCallback? onTap;
 
   const WavyAreaChart({
     super.key,
@@ -17,6 +18,7 @@ class WavyAreaChart extends StatelessWidget {
     this.subtitle,
     required this.values,
     this.height = 160.0,
+    this.onTap,
   });
 
   @override
@@ -27,22 +29,34 @@ class WavyAreaChart extends StatelessWidget {
 
     return AppCard(
       variant: AppCardVariant.amber, // #FEC775
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SectionLabel(
-                title,
-                color: AppColors.darkCard.withAlpha(200),
+              Flexible(
+                child: SectionLabel(
+                  title,
+                  color: AppColors.darkCard.withAlpha(200),
+                ),
               ),
+              const SizedBox(width: 8),
               if (subtitle != null)
-                Text(
-                  subtitle!,
-                  style: AppTypography.title.copyWith(
-                    fontSize: 20,
-                    color: AppColors.darkCard,
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      subtitle!,
+                      style: AppTypography.title.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.darkCard,
+                      ),
+                    ),
                   ),
                 ),
             ],

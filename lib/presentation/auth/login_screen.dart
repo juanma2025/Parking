@@ -98,14 +98,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _handleBiometricLogin() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: AppColors.darkCard,
-        content: Text('El acceso biométrico estará disponible próximamente.'),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,28 +155,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 18),
 
               // Official Brand Logo (Image 3)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: Image.asset(
-                  'assets/images/app_logo.png',
-                  width: 78,
-                  height: 78,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
+              Hero(
+                tag: 'app-official-logo',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Image.asset(
+                    'assets/images/app_logo.png',
                     width: 78,
                     height: 78,
-                    decoration: BoxDecoration(
-                      color: AppColors.darkCard,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'P',
-                      style: TextStyle(
-                        fontFamily: AppTypography.fontFamily,
-                        color: AppColors.secondary,
-                        fontSize: 38,
-                        fontWeight: FontWeight.w700,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 78,
+                      height: 78,
+                      decoration: BoxDecoration(
+                        color: AppColors.darkCard,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'P',
+                        style: TextStyle(
+                          fontFamily: AppTypography.fontFamily,
+                          color: AppColors.secondary,
+                          fontSize: 38,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -270,16 +265,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 variant: PillButtonVariant.dark,
                 onPressed: _handleLogin,
               ),
-              const SizedBox(height: 14),
-
-              // Button 2: Entrar con biometría (Amber Pill Button)
-              PillButton(
-                text: 'Entrar con biometría',
-                icon: const Icon(Icons.fingerprint_rounded, color: AppColors.darkCard, size: 22),
-                variant: PillButtonVariant.amber,
-                onPressed: _handleBiometricLogin,
-              ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
               // Sign Up Link
               GestureDetector(

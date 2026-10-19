@@ -31,32 +31,38 @@ class StatusPill extends StatelessWidget {
         color: defaultBg,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (leading != null) ...[
-            leading!,
-            const SizedBox(width: 4),
-          ] else if (dotColor != null || dotColor == null) ...[
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: effectiveDotColor,
-                shape: BoxShape.circle,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: 4),
+            ] else if (dotColor != null || dotColor == null) ...[
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: effectiveDotColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(
+                color: defaultText,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
               ),
             ),
-            const SizedBox(width: 6),
           ],
-          Text(
-            text,
-            style: AppTypography.caption.copyWith(
-              color: defaultText,
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

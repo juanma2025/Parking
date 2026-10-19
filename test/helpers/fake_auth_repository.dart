@@ -18,6 +18,17 @@ class FakeAuthRepository implements AuthRepository {
   void setCurrentUser(User? user, {UserRole role = UserRole.vehicleOwner}) {
     _currentUser = user;
     _userRole = role;
+    if (user != null) {
+      _currentSession = Session(
+        accessToken: 'fake-token',
+        tokenType: 'bearer',
+        user: user,
+      );
+      _authStateController.add(AuthState(AuthChangeEvent.signedIn, _currentSession));
+    } else {
+      _currentSession = null;
+      _authStateController.add(const AuthState(AuthChangeEvent.signedOut, null));
+    }
   }
 
   @override
@@ -64,6 +75,7 @@ class FakeAuthRepository implements AuthRepository {
     _currentUser = user;
     _currentSession = session;
     _userRole = role;
+    _authStateController.add(AuthState(AuthChangeEvent.signedIn, session));
 
     return AuthResponse(session: session, user: user);
   }
@@ -93,6 +105,7 @@ class FakeAuthRepository implements AuthRepository {
 
     _currentUser = user;
     _currentSession = session;
+    _authStateController.add(AuthState(AuthChangeEvent.signedIn, session));
 
     await logSecurityEvent(eventType: 'login', deviceInfo: 'Test Device');
 
@@ -105,6 +118,7 @@ class FakeAuthRepository implements AuthRepository {
     _currentUser = null;
     _currentSession = null;
     _userRole = UserRole.guest;
+    _authStateController.add(const AuthState(AuthChangeEvent.signedOut, null));
   }
 
   @override

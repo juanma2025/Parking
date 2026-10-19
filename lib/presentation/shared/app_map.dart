@@ -493,7 +493,11 @@ class LandmarkDetailsSheet extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           landmark.name,
-                          style: AppTypography.title.copyWith(fontSize: 18),
+                          style: AppTypography.title.copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
                         ),
                         Text(
                           landmark.address,
@@ -601,7 +605,14 @@ class NearbyParkingCard extends StatelessWidget {
                   children: [
                     Text(
                       lot.name,
-                      style: AppTypography.bodyBold.copyWith(fontSize: 14),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: AppTypography.fontFamily,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                     Text(
                       lot.address,
@@ -651,43 +662,55 @@ class NearbyParkingCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.black12, width: 0.6),
-                ),
-                child: Text(
-                  '🚗 ${lot.carSpaces} carros • 🛵 ${lot.motoSpaces} motos',
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF3A3A3C)),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black12, width: 0.6),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '🚗 ${lot.carSpaces} carros • 🛵 ${lot.motoSpaces} motos',
+                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF3A3A3C)),
+                    ),
+                  ),
                 ),
               ),
-              const Spacer(),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.darkCard,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/parking/${lot.id}');
-                },
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Ver y Reservar',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/parking/${lot.id}');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6.5),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_rounded, size: 13),
-                  ],
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Ver y Reservar',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.darkCard,
+                          ),
+                        ),
+                        SizedBox(width: 3),
+                        Icon(Icons.arrow_forward_rounded, size: 12, color: AppColors.darkCard),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -769,7 +792,14 @@ class ParkingLotDetailsSheet extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(lot.name, style: AppTypography.title.copyWith(fontSize: 18)),
+                        Text(
+                          lot.name,
+                          style: AppTypography.title.copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
                         Text('${lot.address} • San Juan de Pasto', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryLight)),
                       ],
                     ),

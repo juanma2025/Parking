@@ -12,11 +12,12 @@ class ScaffoldWithNavBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(currentUserRoleProvider);
+    final isAuth = ref.watch(isAuthenticatedProvider);
 
     return Scaffold(
       extendBody: true,
       body: child,
-      bottomNavigationBar: _buildBottomBar(context, role),
+      bottomNavigationBar: isAuth ? _buildBottomBar(context, role) : null,
     );
   }
 

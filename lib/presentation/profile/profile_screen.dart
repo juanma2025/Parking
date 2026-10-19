@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/theme/theme_provider.dart';
 import '../../core/utils/motion_utils.dart';
 import '../../domain/entities/user_role.dart';
 import '../auth/auth_providers.dart';
@@ -22,6 +23,8 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final profileAsync = ref.watch(currentProfileProvider);
     final role = ref.watch(currentUserRoleProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final String userName;
     final String userEmail;
@@ -60,11 +63,11 @@ class ProfileScreen extends ConsumerWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: AppColors.white,
+                        color: isDark ? AppColors.darkCard : AppColors.white,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha(8),
+                            color: Colors.black.withAlpha(isDark ? 30 : 8),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -73,22 +76,62 @@ class ProfileScreen extends ConsumerWidget {
                       child: isAuth
                           ? Builder(
                               builder: (ctx) => IconButton(
-                                icon: const Icon(Icons.menu_rounded, color: AppColors.darkCard),
+                                icon: Icon(Icons.menu_rounded, color: isDark ? AppColors.white : AppColors.darkCard),
                                 onPressed: () => Scaffold.of(ctx).openDrawer(),
                               ),
                             )
                           : IconButton(
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.darkCard, size: 18),
+                              icon: Icon(Icons.arrow_back_ios_new_rounded, color: isDark ? AppColors.white : AppColors.darkCard, size: 18),
                               onPressed: () => context.go('/home'),
                             ),
                     ),
                     Text(
                       'Mi Perfil',
-                      style: AppTypography.title.copyWith(fontSize: 18),
+                      style: AppTypography.title.copyWith(
+                        fontSize: 18,
+                        color: isDark ? AppColors.white : AppColors.darkCard,
+                      ),
                     ),
-                    AvatarButton(
-                      initials: initialLetter,
-                      onTap: () {},
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkCard : AppColors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(isDark ? 30 : 8),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            tooltip: themeMode == ThemeMode.system
+                                ? 'Tema: Adaptado al dispositivo'
+                                : (themeMode == ThemeMode.dark ? 'Tema: Oscuro' : 'Tema: Claro'),
+                            icon: Icon(
+                              themeMode == ThemeMode.system
+                                  ? Icons.brightness_auto_rounded
+                                  : (themeMode == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
+                              color: AppColors.secondary,
+                              size: 20,
+                            ),
+                            onPressed: () => ref.read(themeModeProvider.notifier).toggleTheme(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Hero(
+                          tag: 'user-avatar-hero',
+                          child: AvatarButton(
+                            initials: initialLetter,
+                            onTap: () {},
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -134,6 +177,23 @@ class ProfileScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Row(
+                                  children: [
+                                    Icon(_getTimeIcon(), size: 13, color: AppColors.secondary),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '¡${_getTimeGreeting().toUpperCase()}!',
+                                      style: const TextStyle(
+                                        fontFamily: AppTypography.fontFamily,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.secondary,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
                                 Text(
                                   userName,
                                   style: AppTypography.title.copyWith(color: AppColors.white, fontSize: 20),
@@ -184,7 +244,10 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 10),
 
               // Menu Settings (White Card)
-              const SectionLabel('PREFERENCIAS Y CUENTA'),
+              SectionLabel(
+                'PREFERENCIAS Y CUENTA',
+                color: isDark ? AppColors.secondary : null,
+              ),
               const SizedBox(height: 10),
               MotionUtils.staggerEntrance(
                 AppCard(
@@ -192,15 +255,27 @@ class ProfileScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     children: [
-                      _buildProfileOption(Icons.directions_car_rounded, 'Mis Vehículos', '2 registrados', () => context.go('/vehicles')),
-                      const Divider(height: 1),
-                      _buildProfileOption(Icons.account_balance_wallet_rounded, 'Billetera y Métodos', '\$48.500 COP', () => context.go('/payments')),
-                      const Divider(height: 1),
-                      _buildProfileOption(Icons.notifications_rounded, 'Notificaciones', 'SMS y Push activadas', () => context.go('/alerts')),
-                      const Divider(height: 1),
-                      _buildProfileOption(Icons.security_rounded, 'Seguridad y Clave', 'Protección activa', () {}),
-                      const Divider(height: 1),
-                      _buildProfileOption(Icons.help_outline_rounded, 'Soporte y Ayuda', 'Atención 24/7', () {}),
+                      _buildProfileOption(Icons.directions_car_rounded, 'Mis Vehículos', '2 registrados', () => context.go('/vehicles'), isDark: isDark),
+                      Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      _buildProfileOption(Icons.qr_code_2_rounded, 'Pases y Pagos en Sitio', 'Pago presencial QR', () => context.go('/payments'), isDark: isDark),
+                      Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      _buildProfileOption(
+                        themeMode == ThemeMode.system
+                            ? Icons.brightness_auto_rounded
+                            : (themeMode == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
+                        'Tema de la Aplicación',
+                        themeMode == ThemeMode.system
+                            ? 'Adaptado al dispositivo'
+                            : (themeMode == ThemeMode.dark ? 'Modo Oscuro' : 'Modo Claro'),
+                        () => ref.read(themeModeProvider.notifier).toggleTheme(),
+                        isDark: isDark,
+                      ),
+                      Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      _buildProfileOption(Icons.notifications_rounded, 'Notificaciones', 'SMS y Push activadas', () => context.go('/alerts'), isDark: isDark),
+                      Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      _buildProfileOption(Icons.security_rounded, 'Seguridad y Clave', 'Protección activa', () {}, isDark: isDark),
+                      Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      _buildProfileOption(Icons.help_outline_rounded, 'Soporte y Ayuda', 'Atención 24/7', () {}, isDark: isDark),
                     ],
                   ),
                 ),
@@ -271,7 +346,27 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  String _getTimeGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return 'Buenos días';
+    } else if (hour >= 12 && hour < 19) {
+      return 'Buenas tardes';
+    } else {
+      return 'Buenas noches';
+    }
+  }
 
+  IconData _getTimeIcon() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return Icons.wb_sunny_rounded;
+    } else if (hour >= 12 && hour < 19) {
+      return Icons.wb_twilight_rounded;
+    } else {
+      return Icons.nightlight_round;
+    }
+  }
 
   Widget _buildStatItem(String count, String label) {
     return Column(
@@ -283,21 +378,43 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileOption(IconData icon, String title, String subtitle, VoidCallback onTap) {
+  Widget _buildProfileOption(
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap, {
+    required bool isDark,
+  }) {
     return ListTile(
       onTap: onTap,
       leading: Container(
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: AppColors.secondary.withAlpha(50),
+          color: AppColors.secondary.withAlpha(isDark ? 60 : 45),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: AppColors.darkCard, size: 20),
+        child: Icon(icon, color: isDark ? AppColors.secondary : AppColors.darkCard, size: 20),
       ),
-      title: Text(title, style: AppTypography.bodyBold.copyWith(fontSize: 14)),
-      subtitle: Text(subtitle, style: AppTypography.caption.copyWith(color: AppColors.textSecondaryLight, fontSize: 11)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight, size: 20),
+      title: Text(
+        title,
+        style: AppTypography.bodyBold.copyWith(
+          fontSize: 14,
+          color: isDark ? AppColors.white : const Color(0xFF0F172A),
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: AppTypography.caption.copyWith(
+          color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+          fontSize: 11,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        color: isDark ? Colors.white38 : AppColors.textSecondaryLight,
+        size: 20,
+      ),
     );
   }
 }
