@@ -5,7 +5,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/utils/motion_utils.dart';
+import '../../domain/entities/domain_entities.dart';
+import '../auth/auth_providers.dart';
 import '../owner/spaces_provider.dart';
+import '../profile/user_profile_provider.dart';
 import '../reservations/reservations_provider.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
@@ -54,6 +57,10 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     final activeReservations = ref.watch(userReservationsProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentRole = ref.watch(currentUserRoleProvider);
+    final isOwner = currentRole == UserRole.parkingOwner;
+    final userProfile = ref.watch(userProfileProvider);
+    final registeredPayments = ref.watch(registeredPaymentsProvider);
 
     final spaces = ref.watch(parkingSpacesProvider);
     final occupiedSpaces = spaces.where((s) => s.isOccupied).toList();
@@ -98,7 +105,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       ),
                     ),
                     Text(
-                      'Pases y Pagos',
+                      isOwner ? 'Control de Taquilla' : 'Pases y Pagos',
                       style: AppTypography.title.copyWith(
                         fontSize: 18,
                         color: isDark ? AppColors.white : AppColors.darkCard,
@@ -131,6 +138,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                         ),
                         const SizedBox(width: 8),
                         AvatarButton(
+                          avatarUrl: userProfile.avatarUrl,
                           onTap: () => context.go('/profile'),
                         ),
                       ],
@@ -141,470 +149,562 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
               ),
               const SizedBox(height: 20),
 
-              MotionUtils.staggerEntrance(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SectionLabel(
-                      'PAGO DIRECTO EN PARQUEADERO',
-                      color: isDark ? AppColors.secondary : null,
-                    ),
-                    const SizedBox(height: 6),
-                    const TwoToneTitle(text: 'Pases y ', highlightText: 'pagos'),
-                  ],
-                ),
-                index: 1,
-              ),
-              const SizedBox(height: 16),
-
-              // Informative Banner: No payment gateway, QR scan on-site
-              MotionUtils.staggerEntrance(
-                AppCard(
-                  variant: AppCardVariant.amber,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
+              if (isOwner) ...[
+                // ==============================================================
+                // VISTA PROPIETARIO / OPERADOR: CONTROL DE INGRESOS & TAQUILLA
+                // ==============================================================
+                MotionUtils.staggerEntrance(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: const BoxDecoration(
-                              color: AppColors.darkCard,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.secondary, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Pago Presencial con QR',
-                              style: AppTypography.title.copyWith(
-                                color: AppColors.darkCard,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
+                      SectionLabel(
+                        'CONTROL DE INGRESOS EN CAJA',
+                        color: isDark ? AppColors.secondary : null,
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'En Pasto Parking no requieres registrar tarjetas ni usar pasarelas digitales. Presenta el código QR de tu reserva al operador del parqueadero para validar tu estancia y realizar el pago presencial en caja (efectivo, Nequi o transferencia directa).',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.darkCard.withAlpha(220),
-                          fontSize: 13,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      const SizedBox(height: 6),
+                      const TwoToneTitle(text: 'Caja y ', highlightText: 'taquilla'),
                     ],
                   ),
+                  index: 1,
                 ),
-                index: 2,
-              ),
-              const SizedBox(height: 22),
+                const SizedBox(height: 16),
 
-              // ================================================================
-              // REGISTRO DE COBROS EN TAQUILLA (EFECTIVO, NEQUI, TRANSFERENCIAS)
-              // ================================================================
-              SectionLabel(
-                'REGISTRAR COBRO EN TAQUILLA',
-                color: isDark ? AppColors.secondary : null,
-              ),
-              const SizedBox(height: 10),
-
-              MotionUtils.staggerEntrance(
-                AppCard(
-                  variant: isDark ? AppCardVariant.dark : AppCardVariant.white,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Occupied Space selector
-                      if (occupiedSpaces.isNotEmpty) ...[
-                        Text(
-                          'Selecciona bahía ocupada a liquidar:',
-                          style: AppTypography.caption.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white70 : AppColors.darkCard,
+                MotionUtils.staggerEntrance(
+                  AppCard(
+                    variant: AppCardVariant.amber,
+                    padding: const EdgeInsets.all(18),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: AppColors.darkCard,
+                            shape: BoxShape.circle,
                           ),
+                          child: const Icon(Icons.point_of_sale_rounded, color: AppColors.secondary, size: 22),
                         ),
-                        const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              GestureDetector(
-                                onTap: () => setState(() => _selectedSpace = null),
-                                child: Container(
-                                  margin: const EdgeInsets.only(right: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: _selectedSpace == null
-                                        ? AppColors.secondary
-                                        : (isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9)),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    'Transeúnte',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: _selectedSpace == null ? AppColors.darkCard : (isDark ? Colors.white70 : AppColors.darkCard),
-                                    ),
-                                  ),
+                              Text(
+                                'Módulo de Recaudo en Taquilla',
+                                style: AppTypography.title.copyWith(
+                                  color: AppColors.darkCard,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              for (final sp in occupiedSpaces)
+                              const SizedBox(height: 4),
+                              Text(
+                                'Registra ingresos de vehículos transeúntes o bahías ocupadas en efectivo, Nequi o transferencia bancaria.',
+                                style: AppTypography.caption.copyWith(
+                                  color: AppColors.darkCard.withAlpha(220),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  index: 2,
+                ),
+                const SizedBox(height: 22),
+
+                SectionLabel(
+                  'REGISTRAR COBRO EN TAQUILLA',
+                  color: isDark ? AppColors.secondary : null,
+                ),
+                const SizedBox(height: 10),
+
+                MotionUtils.staggerEntrance(
+                  AppCard(
+                    variant: isDark ? AppCardVariant.dark : AppCardVariant.white,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Occupied Space selector
+                        if (occupiedSpaces.isNotEmpty) ...[
+                          Text(
+                            'Selecciona bahía ocupada a liquidar:',
+                            style: AppTypography.caption.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white70 : AppColors.darkCard,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
                                 GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedSpace = sp.spaceNumber;
-                                      if (sp.plate != null && sp.plate!.isNotEmpty) {
-                                        _plateCtrl.text = sp.plate!;
-                                      }
-                                      _amountCtrl.text = sp.hourlyRate.toInt().toString();
-                                    });
-                                  },
+                                  onTap: () => setState(() => _selectedSpace = null),
                                   child: Container(
                                     margin: const EdgeInsets.only(right: 8),
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: _selectedSpace == sp.spaceNumber
+                                      color: _selectedSpace == null
                                           ? AppColors.secondary
                                           : (isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9)),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: _selectedSpace == sp.spaceNumber ? AppColors.secondary : Colors.transparent,
-                                      ),
                                     ),
                                     child: Text(
-                                      '${sp.spaceNumber} (${sp.plate ?? 'Vehículo'})',
+                                      'Transeúnte',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
-                                        color: _selectedSpace == sp.spaceNumber ? AppColors.darkCard : (isDark ? Colors.white70 : AppColors.darkCard),
+                                        color: _selectedSpace == null ? AppColors.darkCard : (isDark ? Colors.white70 : AppColors.darkCard),
                                       ),
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-
-                      // Plate and Amount inputs
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _plateCtrl,
-                              textCapitalization: TextCapitalization.characters,
-                              decoration: InputDecoration(
-                                labelText: 'Placa (ej: ABC-123)',
-                                filled: true,
-                                fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                                prefixIcon: const Icon(Icons.pin_rounded, color: AppColors.secondary, size: 20),
-                              ),
+                                for (final sp in occupiedSpaces)
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedSpace = sp.spaceNumber;
+                                        if (sp.plate != null && sp.plate!.isNotEmpty) {
+                                          _plateCtrl.text = sp.plate!;
+                                        }
+                                        _amountCtrl.text = sp.hourlyRate.toInt().toString();
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: _selectedSpace == sp.spaceNumber
+                                            ? AppColors.secondary
+                                            : (isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9)),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: _selectedSpace == sp.spaceNumber ? AppColors.secondary : Colors.transparent,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${sp.spaceNumber} (${sp.plate ?? 'Vehículo'})',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: _selectedSpace == sp.spaceNumber ? AppColors.darkCard : (isDark ? Colors.white70 : AppColors.darkCard),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: _amountCtrl,
-                              keyboardType: TextInputType.number,
-                              onChanged: (_) => setState(() {}),
-                              decoration: InputDecoration(
-                                labelText: 'Total (COP)',
-                                filled: true,
-                                fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                                prefixIcon: const Icon(Icons.attach_money_rounded, color: AppColors.secondary, size: 20),
-                              ),
-                            ),
-                          ),
+                          const SizedBox(height: 14),
                         ],
-                      ),
-                      const SizedBox(height: 8),
 
-                      // Quick rate buttons
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildQuickTariffChip('1h Moto (\$1.400)', '1400', isDark),
-                            const SizedBox(width: 6),
-                            _buildQuickTariffChip('1h Carro (\$2.800)', '2800', isDark),
-                            const SizedBox(width: 6),
-                            _buildQuickTariffChip('2h Carro (\$5.600)', '5600', isDark),
-                            const SizedBox(width: 6),
-                            _buildQuickTariffChip('3h Carro (\$8.400)', '8400', isDark),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      Text(
-                        'Medio de pago recibido:',
-                        style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : AppColors.darkCard),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Payment Method Selector
-                      Row(
-                        children: [
-                          _buildMethodCard('efectivo', 'Efectivo', Icons.payments_rounded, const Color(0xFF2E7D32), isDark),
-                          const SizedBox(width: 8),
-                          _buildMethodCard('nequi', 'Nequi', Icons.qr_code_2_rounded, const Color(0xFF7B1FA2), isDark),
-                          const SizedBox(width: 8),
-                          _buildMethodCard('transferencia', 'Transferencia', Icons.account_balance_rounded, const Color(0xFF0288D1), isDark),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Specific fields for selected method
-                      if (_selectedMethod == 'efectivo') ...[
-                        TextField(
-                          controller: _receivedCtrl,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Monto en efectivo recibido (\$ COP)',
-                            filled: true,
-                            fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                            prefixIcon: const Icon(Icons.monetization_on_outlined, color: Color(0xFF2E7D32)),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        // Plate and Amount inputs
                         Row(
                           children: [
-                            _buildBillButton('5.000', isDark),
-                            const SizedBox(width: 6),
-                            _buildBillButton('10.000', isDark),
-                            const SizedBox(width: 6),
-                            _buildBillButton('20.000', isDark),
-                            const SizedBox(width: 6),
-                            _buildBillButton('50.000', isDark),
+                            Expanded(
+                              child: TextField(
+                                controller: _plateCtrl,
+                                textCapitalization: TextCapitalization.characters,
+                                decoration: InputDecoration(
+                                  labelText: 'Placa (ej: ABC-123)',
+                                  filled: true,
+                                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                                  prefixIcon: const Icon(Icons.pin_rounded, color: AppColors.secondary, size: 20),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _amountCtrl,
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) => setState(() {}),
+                                decoration: InputDecoration(
+                                  labelText: 'Total (COP)',
+                                  filled: true,
+                                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                                  prefixIcon: const Icon(Icons.attach_money_rounded, color: AppColors.secondary, size: 20),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: change >= 0
-                                ? const Color(0xFF2E7D32).withAlpha(isDark ? 50 : 25)
-                                : Colors.red.withAlpha(isDark ? 50 : 25),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: change >= 0 ? const Color(0xFF2E7D32) : Colors.red,
-                              width: 1.2,
-                            ),
-                          ),
+                        const SizedBox(height: 8),
+
+                        // Quick rate buttons
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                change >= 0 ? 'VUELTAS / CAMBIO:' : 'FALTA POR RECIBIR:',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: change >= 0 ? const Color(0xFF2E7D32) : Colors.red,
-                                ),
-                              ),
-                              Text(
-                                '\$${change.abs().toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} COP',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w900,
-                                  color: change >= 0 ? const Color(0xFF2E7D32) : Colors.red,
-                                ),
-                              ),
+                              _buildQuickTariffChip('1h Moto (\$1.400)', '1400', isDark),
+                              const SizedBox(width: 6),
+                              _buildQuickTariffChip('1h Carro (\$2.800)', '2800', isDark),
+                              const SizedBox(width: 6),
+                              _buildQuickTariffChip('2h Carro (\$5.600)', '5600', isDark),
+                              const SizedBox(width: 6),
+                              _buildQuickTariffChip('3h Carro (\$8.400)', '8400', isDark),
                             ],
                           ),
                         ),
-                      ] else if (_selectedMethod == 'nequi') ...[
-                        TextField(
-                          controller: _nequiPhoneCtrl,
-                          keyboardType: TextInputType.phone,
-                          decoration: InputDecoration(
-                            labelText: 'Celular Nequi del Conductor (ej: 312 456 7890)',
-                            filled: true,
-                            fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                            prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF7B1FA2)),
-                          ),
+                        const SizedBox(height: 16),
+
+                        Text(
+                          'Medio de pago recibido:',
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : AppColors.darkCard),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
-                          controller: _nequiRefCtrl,
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: InputDecoration(
-                            labelText: 'N° de Comprobante M... (ej: M849102)',
-                            filled: true,
-                            fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                            prefixIcon: const Icon(Icons.tag_rounded, color: Color(0xFF7B1FA2)),
-                          ),
-                        ),
-                      ] else ...[
-                        DropdownButtonFormField<String>(
-                          initialValue: _selectedBank,
-                          items: const [
-                            DropdownMenuItem(value: 'Bancolombia', child: Text('Bancolombia (A la mano / QR)')),
-                            DropdownMenuItem(value: 'Daviplata', child: Text('Daviplata')),
-                            DropdownMenuItem(value: 'PSE', child: Text('PSE / Transferencia en línea')),
-                            DropdownMenuItem(value: 'Otros', child: Text('Otros')),
+
+                        // Payment Method Selector
+                        Row(
+                          children: [
+                            _buildMethodCard('efectivo', 'Efectivo', Icons.payments_rounded, const Color(0xFF2E7D32), isDark),
+                            const SizedBox(width: 8),
+                            _buildMethodCard('nequi', 'Nequi', Icons.qr_code_2_rounded, const Color(0xFF7B1FA2), isDark),
+                            const SizedBox(width: 8),
+                            _buildMethodCard('transferencia', 'Transferencia', Icons.account_balance_rounded, const Color(0xFF0288D1), isDark),
                           ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedBank = val);
-                          },
-                          decoration: InputDecoration(
-                            labelText: 'Entidad Bancaria',
-                            filled: true,
-                            fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                            prefixIcon: const Icon(Icons.account_balance_rounded, color: Color(0xFF0288D1)),
-                          ),
                         ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _transferRefCtrl,
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: InputDecoration(
-                            labelText: 'N° de Referencia / Aprobación (ej: TRF-77210)',
-                            filled: true,
-                            fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                            prefixIcon: const Icon(Icons.numbers_rounded, color: Color(0xFF0288D1)),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 18),
+                        const SizedBox(height: 14),
 
-                      PillButton(
-                        text: '✓ Confirmar y Registrar Pago en Taquilla',
-                        variant: PillButtonVariant.primary,
-                        onPressed: () => _handleSubmitPayment(context, amount, received, change),
-                      ),
-                    ],
-                  ),
-                ),
-                index: 3,
-              ),
-              const SizedBox(height: 24),
-
-              // Active QR Passes Section
-              SectionLabel(
-                'TUS PASES ACTIVOS PARA PAGO',
-                color: isDark ? AppColors.secondary : null,
-              ),
-              const SizedBox(height: 12),
-
-              if (activeReservations.isEmpty)
-                MotionUtils.staggerEntrance(
-                  AppCard(
-                    variant: AppCardVariant.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 30),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withAlpha(isDark ? 60 : 45),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.qr_code_2_rounded, size: 34, color: AppColors.secondary),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No tienes pases de pago pendientes',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.title.copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? AppColors.white : const Color(0xFF0F172A),
+                        // Specific fields for selected method
+                        if (_selectedMethod == 'efectivo') ...[
+                          TextField(
+                            controller: _receivedCtrl,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'Monto en efectivo recibido (\$ COP)',
+                              filled: true,
+                              fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                              prefixIcon: const Icon(Icons.monetization_on_outlined, color: Color(0xFF2E7D32)),
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            'Cuando reserves en cualquier parqueadero de San Juan de Pasto (Unicentro, Nova Centro, Único Outlet), aquí se generará tu pase QR para pagar en portería.',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.body.copyWith(
-                              color: isDark ? Colors.white.withAlpha(200) : AppColors.textSecondaryLight,
-                              fontSize: 13.5,
-                              height: 1.45,
+                          Row(
+                            children: [
+                              _buildBillButton('5.000', isDark),
+                              const SizedBox(width: 6),
+                              _buildBillButton('10.000', isDark),
+                              const SizedBox(width: 6),
+                              _buildBillButton('20.000', isDark),
+                              const SizedBox(width: 6),
+                              _buildBillButton('50.000', isDark),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: change >= 0
+                                  ? const Color(0xFF2E7D32).withAlpha(isDark ? 50 : 25)
+                                  : Colors.red.withAlpha(isDark ? 50 : 25),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: change >= 0 ? const Color(0xFF2E7D32) : Colors.red,
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  change >= 0 ? 'VUELTAS / CAMBIO:' : 'FALTA POR RECIBIR:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: change >= 0 ? const Color(0xFF2E7D32) : Colors.red,
+                                  ),
+                                ),
+                                Text(
+                                  '\$${change.abs().toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} COP',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                    color: change >= 0 ? const Color(0xFF2E7D32) : Colors.red,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          PillButton(
-                            text: 'Buscar parqueadero en Pasto',
-                            variant: isDark ? PillButtonVariant.primary : PillButtonVariant.dark,
-                            onPressed: () => context.go('/home'),
+                        ] else if (_selectedMethod == 'nequi') ...[
+                          TextField(
+                            controller: _nequiPhoneCtrl,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: 'Celular Nequi del Conductor (ej: 312 456 7890)',
+                              filled: true,
+                              fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                              prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF7B1FA2)),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _nequiRefCtrl,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(
+                              labelText: 'N° de Comprobante M... (ej: M849102)',
+                              filled: true,
+                              fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                              prefixIcon: const Icon(Icons.tag_rounded, color: Color(0xFF7B1FA2)),
+                            ),
+                          ),
+                        ] else ...[
+                          DropdownButtonFormField<String>(
+                            initialValue: _selectedBank,
+                            items: const [
+                              DropdownMenuItem(value: 'Bancolombia', child: Text('Bancolombia (A la mano / QR)')),
+                              DropdownMenuItem(value: 'Daviplata', child: Text('Daviplata')),
+                              DropdownMenuItem(value: 'PSE', child: Text('PSE / Transferencia en línea')),
+                              DropdownMenuItem(value: 'Otros', child: Text('Otros')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _selectedBank = val);
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'Entidad Bancaria',
+                              filled: true,
+                              fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                              prefixIcon: const Icon(Icons.account_balance_rounded, color: Color(0xFF0288D1)),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _transferRefCtrl,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(
+                              labelText: 'N° de Referencia / Aprobación (ej: TRF-77210)',
+                              filled: true,
+                              fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                              prefixIcon: const Icon(Icons.numbers_rounded, color: Color(0xFF0288D1)),
+                            ),
                           ),
                         ],
+                        const SizedBox(height: 18),
+
+                        PillButton(
+                          text: '✓ Confirmar y Registrar Pago en Taquilla',
+                          variant: PillButtonVariant.primary,
+                          onPressed: () => _handleSubmitPayment(context, amount, received, change),
+                        ),
+                      ],
+                    ),
+                  ),
+                  index: 3,
+                ),
+                const SizedBox(height: 24),
+
+                SectionLabel(
+                  'HISTORIAL DE COBROS DEL DÍA (TAQUILLA)',
+                  color: isDark ? AppColors.secondary : null,
+                ),
+                const SizedBox(height: 10),
+
+                if (registeredPayments.isEmpty)
+                  AppCard(
+                    variant: isDark ? AppCardVariant.dark : AppCardVariant.white,
+                    padding: const EdgeInsets.all(20),
+                    child: Center(
+                      child: Text(
+                        'Aún no hay cobros registrados hoy en taquilla.',
+                        style: TextStyle(
+                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                          fontSize: 13,
+                        ),
                       ),
+                    ),
+                  )
+                else
+                  for (final item in registeredPayments)
+                    _buildRegisteredPaymentCard(item, isDark),
+              ] else ...[
+                // ==============================================================
+                // VISTA CONDUCTOR: PASES Y CÓDIGOS QR EN VIVO (SE ACTUALIZAN CON CADA RESERVA)
+                // ==============================================================
+                MotionUtils.staggerEntrance(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SectionLabel(
+                        'PAGO DIRECTO EN PARQUEADERO',
+                        color: isDark ? AppColors.secondary : null,
+                      ),
+                      const SizedBox(height: 6),
+                      const TwoToneTitle(text: 'Pases y ', highlightText: 'pagos'),
+                    ],
+                  ),
+                  index: 1,
+                ),
+                const SizedBox(height: 16),
+
+                // Informative Banner: No payment gateway, QR scan on-site
+                MotionUtils.staggerEntrance(
+                  AppCard(
+                    variant: AppCardVariant.amber,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                color: AppColors.darkCard,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.secondary, size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Pago Presencial con QR',
+                                style: AppTypography.title.copyWith(
+                                  color: AppColors.darkCard,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'En Pasto Parking no requieres registrar tarjetas ni usar pasarelas digitales. Presenta el código QR de tu reserva al operador del parqueadero para validar tu estancia y realizar el pago presencial en caja (efectivo, Nequi o transferencia directa).',
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.darkCard.withAlpha(220),
+                            fontSize: 13,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  index: 2,
+                ),
+                const SizedBox(height: 22),
+
+                // Active QR Passes Section (Updates automatically with each reservation!)
+                SectionLabel(
+                  'TUS PASES ACTIVOS PARA PAGO',
+                  color: isDark ? AppColors.secondary : null,
+                ),
+                const SizedBox(height: 12),
+
+                if (activeReservations.isEmpty)
+                  MotionUtils.staggerEntrance(
+                    AppCard(
+                      variant: AppCardVariant.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 30),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withAlpha(isDark ? 60 : 45),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.qr_code_2_rounded, size: 34, color: AppColors.secondary),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No tienes pases de pago pendientes',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.title.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? AppColors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Cuando reserves en cualquier parqueadero de San Juan de Pasto (Unicentro, Nova Centro, Único Outlet), aquí se generará tu pase QR para pagar en portería.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.body.copyWith(
+                                color: isDark ? Colors.white.withAlpha(200) : AppColors.textSecondaryLight,
+                                fontSize: 13.5,
+                                height: 1.45,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            PillButton(
+                              text: 'Buscar parqueadero en Pasto',
+                              variant: isDark ? PillButtonVariant.primary : PillButtonVariant.dark,
+                              onPressed: () => context.go('/home'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    index: 3,
+                  )
+                else
+                  for (int i = 0; i < activeReservations.length; i++) ...[
+                    MotionUtils.staggerEntrance(
+                      _buildActivePassCard(context, activeReservations[i], isDark: isDark),
+                      index: 3 + i,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                const SizedBox(height: 24),
+
+                // How it works Card (High-contrast in both Light & Dark modes)
+                SectionLabel(
+                  '¿CÓMO FUNCIONA EL PAGO EN PASTO?',
+                  color: isDark ? AppColors.secondary : null,
+                ),
+                const SizedBox(height: 12),
+                MotionUtils.staggerEntrance(
+                  AppCard(
+                    variant: AppCardVariant.white,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        _buildStepItem(
+                          icon: Icons.search_rounded,
+                          number: '1',
+                          title: 'Reserva tu cupo en Pasto',
+                          description: 'Selecciona el parqueadero deseado en el mapa y confirma las horas de estancia.',
+                          isDark: isDark,
+                        ),
+                        Divider(height: 26, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        _buildStepItem(
+                          icon: Icons.qr_code_rounded,
+                          number: '2',
+                          title: 'Muestra tu código QR en portería',
+                          description: 'El operador del parqueadero escanea tu código al ingresar o salir para verificar la reserva.',
+                          isDark: isDark,
+                        ),
+                        Divider(height: 26, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        _buildStepItem(
+                          icon: Icons.storefront_rounded,
+                          number: '3',
+                          title: 'Paga directamente en taquilla',
+                          description: 'Cancela el valor exacto en efectivo, Nequi directo o transferencia bancaria sin recargos.',
+                          isDark: isDark,
+                        ),
+                      ],
                     ),
                   ),
                   index: 4,
-                )
-              else
-                for (int i = 0; i < activeReservations.length; i++) ...[
-                  MotionUtils.staggerEntrance(
-                    _buildActivePassCard(context, activeReservations[i], isDark: isDark),
-                    index: 4 + i,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-              const SizedBox(height: 24),
-
-              // How it works Card (High-contrast in both Light & Dark modes)
-              SectionLabel(
-                '¿CÓMO FUNCIONA EL PAGO EN PASTO?',
-                color: isDark ? AppColors.secondary : null,
-              ),
-              const SizedBox(height: 12),
-              MotionUtils.staggerEntrance(
-                AppCard(
-                  variant: AppCardVariant.white,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      _buildStepItem(
-                        icon: Icons.search_rounded,
-                        number: '1',
-                        title: 'Reserva tu cupo en Pasto',
-                        description: 'Selecciona el parqueadero deseado en el mapa y confirma las horas de estancia.',
-                        isDark: isDark,
-                      ),
-                      Divider(height: 26, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      _buildStepItem(
-                        icon: Icons.qr_code_rounded,
-                        number: '2',
-                        title: 'Muestra tu código QR en portería',
-                        description: 'El operador del parqueadero escanea tu código al ingresar o salir para verificar la reserva.',
-                        isDark: isDark,
-                      ),
-                      Divider(height: 26, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      _buildStepItem(
-                        icon: Icons.storefront_rounded,
-                        number: '3',
-                        title: 'Paga directamente en taquilla',
-                        description: 'Cancela el valor exacto en efectivo, Nequi directo o transferencia bancaria sin recargos.',
-                        isDark: isDark,
-                      ),
-                    ],
-                  ),
                 ),
-                index: 5,
-              ),
+              ],
               const SizedBox(height: 80),
             ],
           ),
@@ -868,9 +968,16 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 backgroundColor: AppColors.secondary,
                 textColor: AppColors.darkCard,
               ),
-              Text(
-                item.spotNumber,
-                style: AppTypography.bodyBold.copyWith(color: AppColors.secondary, fontSize: 13),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withAlpha(40),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Bahía ${item.spotNumber}',
+                  style: AppTypography.bodyBold.copyWith(color: AppColors.secondary, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -883,6 +990,26 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
           Text(
             item.address,
             style: AppTypography.caption.copyWith(color: Colors.white70),
+          ),
+          const SizedBox(height: 10),
+          // Vehicle badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(20),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car_rounded, size: 14, color: AppColors.secondary),
+                const SizedBox(width: 6),
+                Text(
+                  '${item.vehicleName} (${item.vehiclePlate})',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
 
@@ -910,7 +1037,17 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                       color: AppColors.darkCard,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.2,
-                      fontSize: 13,
+                      fontSize: 14,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pase digital dinámico • San Juan de Pasto',
+                    style: TextStyle(
+                      color: AppColors.darkCard.withAlpha(160),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -939,10 +1076,137 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                     ),
                   ],
                 ),
-                Text(
-                  '${item.hours} hora${item.hours > 1 ? 's' : ''}',
-                  style: AppTypography.caption.copyWith(color: Colors.white70),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${item.hours} hora${item.hours > 1 ? 's' : ''}',
+                      style: AppTypography.bodyBold.copyWith(color: Colors.white, fontSize: 13),
+                    ),
+                    Text(
+                      'Entrada: ${item.entryTime}',
+                      style: AppTypography.caption.copyWith(color: Colors.white70, fontSize: 11),
+                    ),
+                  ],
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '💡 Presenta este código QR en portería al operario para validar tu entrada o registrar tu salida y pago en taquilla.',
+            style: TextStyle(
+              color: Colors.white.withAlpha(180),
+              fontSize: 11.5,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRegisteredPaymentCard(RegisteredPaymentItem item, bool isDark) {
+    final methodColor = item.method == 'efectivo'
+        ? const Color(0xFF2E7D32)
+        : (item.method == 'nequi' ? const Color(0xFF7B1FA2) : const Color(0xFF0288D1));
+    final methodIcon = item.method == 'efectivo'
+        ? Icons.payments_rounded
+        : (item.method == 'nequi' ? Icons.qr_code_2_rounded : Icons.account_balance_rounded);
+    final timeStr =
+        '${item.timestamp.hour.toString().padLeft(2, '0')}:${item.timestamp.minute.toString().padLeft(2, '0')}';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: methodColor.withAlpha(isDark ? 50 : 25),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(methodIcon, color: methodColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      item.formattedAmount,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : AppColors.darkCard,
+                      ),
+                    ),
+                    Text(
+                      timeStr,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: methodColor.withAlpha(20),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.method.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: methodColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (item.plate != null && item.plate!.isNotEmpty)
+                      Text(
+                        'Placa: ${item.plate}',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : AppColors.darkCard,
+                        ),
+                      ),
+                    if (item.spaceNumber != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '• Bahía: ${item.spaceNumber}',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (item.changeAmount != null && item.changeAmount! > 0) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    'Cambio entregado: \$${item.changeAmount!.toInt()} COP',
+                    style: const TextStyle(fontSize: 10.5, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
+                  ),
+                ],
               ],
             ),
           ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:parking_app/domain/entities/user_role.dart';
+import 'package:parking_app/presentation/auth/auth_providers.dart';
 import 'package:parking_app/presentation/owner/owner_screens.dart';
 import 'package:parking_app/presentation/payments/payments_screen.dart';
 
@@ -98,8 +100,11 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        ProviderScope(
+          overrides: [
+            currentUserRoleProvider.overrideWithValue(UserRole.parkingOwner),
+          ],
+          child: const MaterialApp(
             home: PaymentsScreen(),
           ),
         ),

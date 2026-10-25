@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:parking_app/presentation/alerts/alerts_screen.dart';
 import 'package:parking_app/presentation/payments/payments_screen.dart';
 import 'package:parking_app/presentation/reservations/my_reservations_screen.dart';
+import 'package:parking_app/presentation/reservations/reservations_provider.dart';
 import 'package:parking_app/domain/entities/user_role.dart';
 import 'package:parking_app/presentation/auth/auth_providers.dart';
 import 'package:parking_app/presentation/shared/app_drawer.dart';
@@ -45,10 +46,14 @@ void main() {
       expect(find.text('Yamaha MT-03 2024'), findsOneWidget);
     });
 
-    testWidgets('PaymentsScreen renders QR payment info and pasto guidance', (tester) async {
+    testWidgets('PaymentsScreen renders QR payment info, updates with reservations, and hides taquilla for drivers', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
             home: PaymentsScreen(),
           ),
         ),
@@ -60,6 +65,26 @@ void main() {
       expect(find.text('Pago Presencial con QR'), findsOneWidget);
       expect(find.text('¿CÓMO FUNCIONA EL PAGO EN PASTO?'), findsOneWidget);
       expect(find.text('Buscar parqueadero en Pasto'), findsOneWidget);
+      // Desk income / taquilla registration MUST NOT be shown to driver
+      expect(find.text('REGISTRAR COBRO EN TAQUILLA'), findsNothing);
+
+      // Add a reservation dynamically
+      container.read(userReservationsProvider.notifier).addReservation(
+            parkingLotName: 'Parqueadero Unicentro Pasto',
+            address: 'Cra 34 # 18-45',
+            hours: 2,
+            formattedTotal: '\$5.600 COP',
+            vehiclePlate: 'ABC-123',
+            vehicleName: 'Mazda 3 Touring',
+          );
+
+      await tester.pumpAndSettle();
+
+      // Dynamic QR card should now be rendered automatically
+      expect(find.text('Parqueadero Unicentro Pasto'), findsOneWidget);
+      expect(find.text('LISTO PARA ESCANEAR'), findsOneWidget);
+      expect(find.textContaining('QR-PAS-'), findsOneWidget);
+      expect(find.text('Mazda 3 Touring (ABC-123)'), findsOneWidget);
     });
 
     testWidgets('AlertsScreen renders notification cards', (tester) async {

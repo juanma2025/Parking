@@ -494,59 +494,92 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
     // Si no tiene reservas activas, pedir confirmación y proceder
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 26),
-            SizedBox(width: 8),
-            Text('¿Eliminar vehículo?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar ${vehicle.displayName} (${vehicle.plate}) de tu cuenta? Esta acción no se puede deshacer.',
-          style: const TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 26),
+              SizedBox(width: 8),
+              Text('¿Eliminar vehículo?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              final result = ref
-                  .read(userVehiclesProvider.notifier)
-                  .deleteVehicle(vehicle.id, activeReservations);
+          content: Text(
+            '¿Estás seguro de que deseas eliminar ${vehicle.displayName} (${vehicle.plate}) de tu cuenta? Esta acción no se puede deshacer.',
+            style: const TextStyle(fontSize: 14, height: 1.4),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actionsPadding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      final result = ref
+                          .read(userVehiclesProvider.notifier)
+                          .deleteVehicle(vehicle.id, activeReservations);
 
-              if (result.success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.darkCard,
-                    content: Text(
-                      'Vehículo ${vehicle.plate} eliminado con éxito.',
-                      style: const TextStyle(color: AppColors.white),
+                      if (result.success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.darkCard,
+                            content: Text(
+                              'Vehículo ${vehicle.plate} eliminado con éxito.',
+                              style: const TextStyle(color: AppColors.white),
+                            ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.error,
+                            content: Text(result.errorMessage ?? 'Error al eliminar vehículo.'),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'Eliminar',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.error,
-                    content: Text(result.errorMessage ?? 'Error al eliminar vehículo.'),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(
+                        'Cancelar',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isDark ? AppColors.secondary : AppColors.darkCard,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
                   ),
-                );
-              }
-            },
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

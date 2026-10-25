@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -20,15 +21,38 @@ class AvatarButton extends StatelessWidget {
     Widget imageWidget;
 
     if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      imageWidget = ClipOval(
-        child: Image.network(
-          avatarUrl!,
+      final url = avatarUrl!;
+      if (url.startsWith('data:image')) {
+        try {
+          final base64String = url.split(',').last;
+          final bytes = base64Decode(base64String);
+          imageWidget = Image.memory(
+            bytes,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _buildFallback(),
+          );
+        } catch (_) {
+          imageWidget = _buildFallback();
+        }
+      } else if (url.startsWith('assets/')) {
+        imageWidget = Image.asset(
+          url,
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildFallback(),
-        ),
-      );
+          errorBuilder: (_, _, _) => _buildFallback(),
+        );
+      } else {
+        imageWidget = Image.network(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _buildFallback(),
+        );
+      }
     } else {
       imageWidget = _buildFallback();
     }

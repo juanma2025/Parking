@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/user_role.dart';
 import '../auth/auth_providers.dart';
+import '../profile/user_profile_provider.dart';
+import '../reservations/reservations_provider.dart';
+import '../vehicles/vehicles_provider.dart';
 
 /// AppDrawer redesigned with Apple iOS Human Interface Guidelines:
 /// - iOS Inset Grouped layout (Cupertino Settings aesthetic)
@@ -19,13 +23,20 @@ class AppDrawer extends ConsumerWidget {
     final isAuth = ref.watch(isAuthenticatedProvider);
     final user = ref.watch(currentUserProvider);
     final profileAsync = ref.watch(currentProfileProvider);
+    final userProfile = ref.watch(userProfileProvider);
+    final reservations = ref.watch(userReservationsProvider);
+    final activeReservations = reservations.where((r) => r.isActiveOrConfirmed).toList();
+    final vehicles = ref.watch(userVehiclesProvider);
 
     final String userName;
     final String userEmail;
     final String initialLetter;
+    final String? avatarUrl = userProfile.avatarUrl ?? (isAuth ? profileAsync.value?.avatarUrl : null);
 
     if (isAuth && user != null) {
-      final profileName = profileAsync.value?.fullName;
+      final profileName = userProfile.fullName.isNotEmpty
+          ? userProfile.fullName
+          : profileAsync.value?.fullName;
       final metaName = user.userMetadata?['full_name'] as String?;
       userName = (profileName != null && profileName.trim().isNotEmpty)
           ? profileName.trim()
@@ -35,9 +46,9 @@ class AppDrawer extends ConsumerWidget {
       userEmail = user.email ?? 'Sin correo vinculado';
       initialLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'C';
     } else {
-      userName = 'Modo Exploración';
+      userName = userProfile.fullName.isNotEmpty ? userProfile.fullName : 'Modo Exploración';
       userEmail = 'Sin sesión iniciada';
-      initialLetter = 'E';
+      initialLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'E';
     }
 
     return Drawer(
@@ -85,15 +96,55 @@ class AppDrawer extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(color: const Color(0x99FBAB56), width: 1.5),
                               ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                initialLetter,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.5,
-                                ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: avatarUrl != null && avatarUrl.isNotEmpty
+                                    ? (avatarUrl.startsWith('data:image')
+                                        ? Image.memory(
+                                            base64Decode(avatarUrl.split(',').last),
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => Center(
+                                              child: Text(
+                                                initialLetter,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: -0.5,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : Image.network(
+                                            avatarUrl,
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => Center(
+                                              child: Text(
+                                                initialLetter,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: -0.5,
+                                                ),
+                                              ),
+                                            ),
+                                          ))
+                                    : Center(
+                                        child: Text(
+                                          initialLetter,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: -0.5,
+                                          ),
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -298,7 +349,9 @@ class AppDrawer extends ConsumerWidget {
                             iconColor: const Color(0xFFFF9500), // Apple Orange
                             title: 'Mis Reservas',
                             subtitle: 'Activas e historial',
-                            badge: '1 activa',
+                            badge: activeReservations.isNotEmpty
+                                ? '${activeReservations.length} ${activeReservations.length == 1 ? "activa" : "activas"}'
+                                : null,
                             badgeBgColor: const Color(0xFFFFF3E0),
                             badgeTextColor: const Color(0xFFE65100),
                             onTap: () {
@@ -313,7 +366,9 @@ class AppDrawer extends ConsumerWidget {
                             iconColor: const Color(0xFF34C759), // Apple Green
                             title: 'Mis Vehículos',
                             subtitle: 'Placas y categorías',
-                            badge: '2 autos',
+                            badge: vehicles.isNotEmpty
+                                ? '${vehicles.length} ${vehicles.length == 1 ? "auto" : "autos"}'
+                                : null,
                             badgeBgColor: const Color(0xFFF2F2F7),
                             badgeTextColor: const Color(0xFF636366),
                             onTap: () {

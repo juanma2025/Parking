@@ -43,35 +43,72 @@ class _AnimatedAuthActionsState extends State<AnimatedAuthActions>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AnimatedBuilder(
       animation: _glowAnimation,
       builder: (context, child) {
-        return FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerRight,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 1. Iniciar sesión pill
-              Material(
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. Iniciar sesión compact pill
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => context.push('/login'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkCard : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.login_rounded,
+                        size: 12,
+                        color: isDark ? AppColors.secondary : const Color(0xFFB46500),
+                      ),
+                      const SizedBox(width: 3.5),
+                      Text(
+                        'Iniciar sesión',
+                        style: AppTypography.caption.copyWith(
+                          color: isDark ? AppColors.white : AppColors.darkCard,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+
+            // 2. Registro pill with refined CTA accent
+            Transform.scale(
+              scale: 0.99 + (0.02 * _glowAnimation.value),
+              child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => context.push('/login'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => context.push('/register'),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.darkCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.white.withAlpha((40 * _glowAnimation.value).toInt()),
-                        width: 1,
-                      ),
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha((20 * _glowAnimation.value).toInt()),
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
+                          color: AppColors.primary.withAlpha((50 * _glowAnimation.value).toInt()),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
@@ -79,17 +116,17 @@ class _AnimatedAuthActionsState extends State<AnimatedAuthActions>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.login_rounded,
-                          size: 12.5,
-                          color: AppColors.secondary,
+                          Icons.person_add_rounded,
+                          size: 12,
+                          color: AppColors.darkCard,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 3.5),
                         Text(
-                          'Iniciar sesión',
+                          'Registro',
                           style: AppTypography.caption.copyWith(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 10.5,
+                            color: AppColors.darkCard,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
                           ),
                         ),
                       ],
@@ -97,54 +134,8 @@ class _AnimatedAuthActionsState extends State<AnimatedAuthActions>
                   ),
                 ),
               ),
-              const SizedBox(width: 5),
-
-              // 2. Registro pill with subtle breathing pulse
-              Transform.scale(
-                scale: 0.98 + (0.04 * _glowAnimation.value),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => context.push('/register'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withAlpha((100 * _glowAnimation.value).toInt()),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.person_add_rounded,
-                            size: 12.5,
-                            color: AppColors.darkCard,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Registro',
-                            style: AppTypography.caption.copyWith(
-                              color: AppColors.darkCard,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 10.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,7 @@ import '../shared/pill_button.dart';
 import '../shared/section_label.dart';
 import '../shared/status_pill.dart';
 import '../vehicles/vehicles_provider.dart';
+import 'user_profile_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -29,14 +31,18 @@ class ProfileScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final activeReservations = ref.watch(userReservationsProvider);
     final vehicles = ref.watch(userVehiclesProvider);
+    final userProfile = ref.watch(userProfileProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final String userName;
     final String userEmail;
     final String initialLetter;
+    final String? avatarUrl = userProfile.avatarUrl ?? (isAuth ? profileAsync.value?.avatarUrl : null);
 
     if (isAuth && user != null) {
-      final profileName = profileAsync.value?.fullName;
+      final profileName = userProfile.fullName.isNotEmpty
+          ? userProfile.fullName
+          : profileAsync.value?.fullName;
       final metaName = user.userMetadata?['full_name'] as String?;
       userName = (profileName != null && profileName.trim().isNotEmpty)
           ? profileName.trim()
@@ -46,9 +52,9 @@ class ProfileScreen extends ConsumerWidget {
       userEmail = user.email ?? 'Sin correo vinculado';
       initialLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
     } else {
-      userName = 'Modo Invitado';
+      userName = userProfile.fullName.isNotEmpty ? userProfile.fullName : 'Modo Invitado';
       userEmail = 'Inicia sesión para sincronizar tus datos';
-      initialLetter = 'I';
+      initialLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'I';
     }
 
     return Scaffold(
@@ -132,8 +138,9 @@ class ProfileScreen extends ConsumerWidget {
                         Hero(
                           tag: 'user-avatar-hero',
                           child: AvatarButton(
+                            avatarUrl: avatarUrl,
                             initials: initialLetter,
-                            onTap: () {},
+                            onTap: () => _showEditProfileModal(context, ref, isDark, userProfile),
                           ),
                         ),
                       ],
@@ -153,29 +160,57 @@ class ProfileScreen extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.white, width: 3),
-                            ),
-                            alignment: Alignment.center,
-                            child: isAuth
-                                ? Text(
-                                    initialLetter,
-                                    style: const TextStyle(
-                                      color: AppColors.darkCard,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.person_outline_rounded,
-                                    color: AppColors.darkCard,
-                                    size: 32,
+                          GestureDetector(
+                            onTap: () => _showEditProfileModal(context, ref, isDark, userProfile),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppColors.white, width: 3),
                                   ),
+                                  child: ClipOval(
+                                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                                        ? (avatarUrl.startsWith('data:image')
+                                            ? Image.memory(
+                                                base64Decode(avatarUrl.split(',').last),
+                                                width: 64,
+                                                height: 64,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, _, _) => _buildAvatarFallback(initialLetter, isAuth),
+                                              )
+                                            : Image.network(
+                                                avatarUrl,
+                                                width: 64,
+                                                height: 64,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, _, _) => _buildAvatarFallback(initialLetter, isAuth),
+                                              ))
+                                        : _buildAvatarFallback(initialLetter, isAuth),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: AppColors.darkCard, width: 2),
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt_rounded,
+                                      size: 12,
+                                      color: AppColors.darkCard,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -209,12 +244,43 @@ class ProfileScreen extends ConsumerWidget {
                                   style: AppTypography.caption.copyWith(color: Colors.white70),
                                 ),
                                 const SizedBox(height: 6),
-                                StatusPill(
-                                  text: isAuth
-                                      ? (role == UserRole.parkingOwner ? 'PROPIETARIO VERIFICADO ★' : 'VERIFICADO RUNT ★')
-                                      : 'MODO INVITADO',
-                                  backgroundColor: const Color(0xFF333333),
-                                  textColor: isAuth ? AppColors.secondary : Colors.white70,
+                                Row(
+                                  children: [
+                                    StatusPill(
+                                      text: isAuth
+                                          ? (role == UserRole.parkingOwner ? 'PROPIETARIO VERIFICADO ★' : 'VERIFICADO RUNT ★')
+                                          : 'MODO INVITADO',
+                                      backgroundColor: const Color(0xFF333333),
+                                      textColor: isAuth ? AppColors.secondary : Colors.white70,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () => _showEditProfileModal(context, ref, isDark, userProfile),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withAlpha(25),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: Colors.white24, width: 0.8),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.edit_outlined, size: 11, color: Colors.white70),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Editar',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -364,9 +430,9 @@ class ProfileScreen extends ConsumerWidget {
                       Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                       _buildProfileOption(Icons.notifications_rounded, 'Notificaciones', 'SMS y Push activadas', () => context.go('/alerts'), isDark: isDark),
                       Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      _buildProfileOption(Icons.security_rounded, 'Seguridad y Clave', 'Protección activa', () {}, isDark: isDark),
+                      _buildProfileOption(Icons.security_rounded, 'Seguridad y Clave', 'Protección activa', () => _showSecurityAndPasswordModal(context, isDark), isDark: isDark),
                       Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      _buildProfileOption(Icons.help_outline_rounded, 'Soporte y Ayuda', 'Atención 24/7', () {}, isDark: isDark),
+                      _buildProfileOption(Icons.help_outline_rounded, 'Soporte y Ayuda', 'Atención 24/7', () => _showSupportModal(context, isDark), isDark: isDark),
                     ],
                   ),
                 ),
@@ -752,6 +818,694 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarFallback(String initialLetter, bool isAuth) {
+    return Container(
+      color: AppColors.secondary,
+      alignment: Alignment.center,
+      child: isAuth
+          ? Text(
+              initialLetter,
+              style: const TextStyle(
+                color: AppColors.darkCard,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          : const Icon(
+              Icons.person_outline_rounded,
+              color: AppColors.darkCard,
+              size: 32,
+            ),
+    );
+  }
+
+  void _showEditProfileModal(
+    BuildContext context,
+    WidgetRef ref,
+    bool isDark,
+    UserProfileState userProfile,
+  ) {
+    final nameCtrl = TextEditingController(text: userProfile.fullName);
+    final phoneCtrl = TextEditingController(text: userProfile.phone);
+    final urlCtrl = TextEditingController(text: userProfile.avatarUrl ?? '');
+    String? selectedAvatar = userProfile.avatarUrl;
+
+    final presetAvatars = [
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200',
+      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.lightBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalContext, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              left: 20,
+              right: 20,
+              top: 16,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black26,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Editar Perfil y Foto',
+                    style: AppTypography.title.copyWith(
+                      color: isDark ? AppColors.white : AppColors.darkCard,
+                      fontSize: 19,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tu foto e información se conservarán aunque cierres sesión.',
+                    style: AppTypography.caption.copyWith(
+                      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  Center(
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.primary, width: 3),
+                          ),
+                          child: ClipOval(
+                            child: (selectedAvatar != null && selectedAvatar!.isNotEmpty)
+                                ? (selectedAvatar!.startsWith('data:image')
+                                    ? Image.memory(
+                                        base64Decode(selectedAvatar!.split(',').last),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) => const Icon(Icons.person, size: 40),
+                                      )
+                                    : Image.network(
+                                        selectedAvatar!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) => const Icon(Icons.person, size: 40),
+                                      ))
+                                : const Icon(Icons.person, size: 40),
+                          ),
+                        ),
+                        if (selectedAvatar != null && selectedAvatar!.isNotEmpty)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () {
+                                setModalState(() {
+                                  selectedAvatar = null;
+                                  urlCtrl.clear();
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close_rounded, size: 14, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Text(
+                    'Fotos recomendadas (Toca para elegir):',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white70 : AppColors.darkCard,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final preset in presetAvatars)
+                          GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                selectedAvatar = preset;
+                                urlCtrl.text = preset;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: selectedAvatar == preset ? AppColors.primary : Colors.transparent,
+                                  width: 2.5,
+                                ),
+                              ),
+                              child: ClipOval(
+                                child: Image.network(
+                                  preset,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => const Icon(Icons.person, size: 24),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: urlCtrl,
+                    onChanged: (val) {
+                      setModalState(() {
+                        selectedAvatar = val.trim().isNotEmpty ? val.trim() : null;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'O pega la URL de una foto',
+                      hintText: 'https://ejemplo.com/mifoto.jpg',
+                      prefixIcon: const Icon(Icons.link_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre completo',
+                      prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  TextField(
+                    controller: phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Teléfono / WhatsApp',
+                      prefixIcon: const Icon(Icons.phone_iphone_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.darkCard,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () {
+                        final newName = nameCtrl.text.trim();
+                        final newPhone = phoneCtrl.text.trim();
+                        final newAvatar = selectedAvatar?.trim();
+
+                        ref.read(userProfileProvider.notifier).updateProfile(
+                              fullName: newName.isNotEmpty ? newName : null,
+                              phone: newPhone.isNotEmpty ? newPhone : null,
+                              avatarUrl: newAvatar,
+                            );
+
+                        Navigator.pop(ctx);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            backgroundColor: AppColors.darkCard,
+                            content: Text(
+                              '✓ Perfil y foto actualizados. Tus datos se conservarán siempre.',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Guardar Cambios',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showSecurityAndPasswordModal(BuildContext context, bool isDark) {
+    final currentPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.lightBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalContext, setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              left: 20,
+              right: 20,
+              top: 16,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black26,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(50),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.lock_reset_rounded, color: AppColors.secondary, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Seguridad y Clave',
+                              style: AppTypography.title.copyWith(
+                                color: isDark ? AppColors.white : AppColors.darkCard,
+                                fontSize: 18,
+                              ),
+                            ),
+                            Text(
+                              'Cambia tu contraseña de acceso',
+                              style: AppTypography.caption.copyWith(
+                                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  TextField(
+                    controller: currentPassCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña Actual',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  TextField(
+                    controller: newPassCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Nueva Contraseña (mínimo 8 caracteres)',
+                      prefixIcon: const Icon(Icons.key_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  TextField(
+                    controller: confirmPassCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Confirmar Nueva Contraseña',
+                      prefixIcon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.darkCard,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () {
+                        final currentPass = currentPassCtrl.text.trim();
+                        final newPass = newPassCtrl.text.trim();
+                        final confirmPass = confirmPassCtrl.text.trim();
+
+                        if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Por favor completa todos los campos de contraseña.')),
+                          );
+                          return;
+                        }
+
+                        if (newPass.length < 8) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('La nueva contraseña debe tener al menos 8 caracteres.')),
+                          );
+                          return;
+                        }
+
+                        if (newPass != confirmPass) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('La nueva contraseña y su confirmación no coinciden.')),
+                          );
+                          return;
+                        }
+
+                        // Alerta de confirmación para conservar la nueva clave y eliminar la antigua
+                        showDialog(
+                          context: context,
+                          builder: (dialogCtx) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            title: const Row(
+                              children: [
+                                Icon(Icons.security_update_good_rounded, color: AppColors.secondary, size: 24),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '¿Confirmar cambio de clave?',
+                                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            content: const Text(
+                              'Se eliminará tu contraseña antigua de acceso y se conservará la nueva clave que acabas de definir. ¿Deseas aplicar el cambio?',
+                              style: TextStyle(fontSize: 14, height: 1.4),
+                            ),
+                            actionsAlignment: MainAxisAlignment.center,
+                            actionsPadding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+                            actions: [
+                              SizedBox(
+                                width: double.infinity,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: AppColors.darkCard,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      ),
+                                      onPressed: () {
+                                        Navigator.pop(dialogCtx);
+                                        Navigator.pop(ctx);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            backgroundColor: AppColors.darkCard,
+                                            content: Text(
+                                              '✓ Contraseña actualizada con éxito. Tu nueva clave está activa.',
+                                              style: TextStyle(color: Colors.white),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text(
+                                        'Conservar nueva clave',
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Center(
+                                      child: TextButton(
+                                        onPressed: () => Navigator.pop(dialogCtx),
+                                        child: Text(
+                                          'Mantener contraseña anterior',
+                                          style: TextStyle(
+                                            color: isDark ? AppColors.secondary : AppColors.darkCard,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Actualizar Contraseña',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showSupportModal(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.lightBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black26,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF34C759).withAlpha(45),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.support_agent_rounded, color: Color(0xFF34C759), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Soporte y Ayuda 24/7',
+                        style: AppTypography.title.copyWith(
+                          color: isDark ? AppColors.white : AppColors.darkCard,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
+                        'Atención al usuario en San Juan de Pasto',
+                        style: AppTypography.caption.copyWith(
+                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildSupportChannel(
+              icon: Icons.chat_bubble_rounded,
+              iconColor: const Color(0xFF34C759),
+              title: 'WhatsApp Soporte Pasto',
+              subtitle: '+57 312 890 1234 • Respuesta en menos de 5 min',
+              onTap: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Conectando con asesor de soporte en WhatsApp...')),
+                );
+              },
+              isDark: isDark,
+            ),
+            const SizedBox(height: 10),
+
+            _buildSupportChannel(
+              icon: Icons.phone_in_talk_rounded,
+              iconColor: const Color(0xFF007AFF),
+              title: 'Línea de Atención Telefónica',
+              subtitle: '(602) 720 0000 • Central de operaciones Pasto',
+              onTap: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Llamando a la central de atención en Pasto...')),
+                );
+              },
+              isDark: isDark,
+            ),
+            const SizedBox(height: 10),
+
+            _buildSupportChannel(
+              icon: Icons.email_rounded,
+              iconColor: const Color(0xFFFF9500),
+              title: 'Correo Electrónico Oficial',
+              subtitle: 'soporte@parkingpasto.com • PQRS y sugerencias',
+              onTap: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Correo de soporte: soporte@parkingpasto.com')),
+                );
+              },
+              isDark: isDark,
+            ),
+            const SizedBox(height: 10),
+
+            _buildSupportChannel(
+              icon: Icons.help_center_rounded,
+              iconColor: const Color(0xFF5856D6),
+              title: 'Preguntas Frecuentes',
+              subtitle: 'Guía de reservas, pases QR y tarifas en COP',
+              onTap: () {
+                Navigator.pop(ctx);
+                context.go('/home');
+              },
+              isDark: isDark,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportChannel({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withAlpha(isDark ? 50 : 35),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: AppTypography.fontFamily,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontFamily: AppTypography.fontFamily,
+                      fontSize: 11.5,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? Colors.white38 : Colors.black26,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
