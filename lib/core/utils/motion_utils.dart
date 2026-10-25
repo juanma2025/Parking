@@ -36,12 +36,14 @@ class MotionUtils {
 
   /// Apple HIG micro-interaction wrapper: scale down to 0.97 on press with Curves.easeInOutCubic.
   static Widget pressable({
+    Key? key,
     required Widget child,
     VoidCallback? onTap,
     double pressedScale = 0.97,
     BorderRadius? borderRadius,
   }) {
     return _PressableScale(
+      key: key,
       onTap: onTap,
       pressedScale: pressedScale,
       borderRadius: borderRadius,
@@ -81,6 +83,7 @@ class _PressableScale extends StatefulWidget {
   final BorderRadius? borderRadius;
 
   const _PressableScale({
+    super.key,
     required this.child,
     this.onTap,
     this.pressedScale = 0.97,

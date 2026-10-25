@@ -196,8 +196,25 @@ ALTER TABLE public.security_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can read own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- Vehicles: Users can manage their own vehicles
-CREATE POLICY "Users manage own vehicles" ON public.vehicles FOR ALL USING (auth.uid() = user_id);
+-- Vehicles: Granular RLS policies (SELECT, INSERT, UPDATE, DELETE only for own vehicles)
+-- Restricted deletion: Cannot delete a vehicle with pending, confirmed, or active reservations
+CREATE POLICY "Users can select own vehicles" ON public.vehicles
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own vehicles" ON public.vehicles
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own vehicles" ON public.vehicles
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own vehicles without active reservations" ON public.vehicles
+  FOR DELETE USING (
+    auth.uid() = user_id AND NOT EXISTS (
+      SELECT 1 FROM public.reservations 
+      WHERE reservations.vehicle_id = vehicles.id 
+        AND reservations.status IN ('pending', 'confirmed', 'active')
+    )
+  );
 
 -- Parking Lots: Public can view active parking lots, owners can manage theirs
 CREATE POLICY "Public can view active parking lots" ON public.parking_lots FOR SELECT USING (status = 'active');

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/motion_utils.dart';
+import '../owner/spaces_provider.dart';
 import 'reservations_provider.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
@@ -243,17 +244,39 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
                 children: [
                   _buildCardStat('ESTANCIA', '3:00 - 5:00 PM'),
                   Container(width: 1, height: 26, color: Colors.black12),
-                  _buildCardStat('VEHÍCULO', 'ABC-123'),
+                  _buildCardStat('VEHÍCULO', item.vehiclePlate),
                   Container(width: 1, height: 26, color: Colors.black12),
                   _buildCardStat('TOTAL', item.formattedTotal, highlight: true),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            PillButton(
-              text: 'Ver detalles de llegada',
-              variant: PillButtonVariant.dark,
-              onPressed: () => context.go('/confirmation'),
+            Row(
+              children: [
+                Expanded(
+                  child: PillButton(
+                    text: 'Ver detalles de llegada',
+                    variant: PillButtonVariant.dark,
+                    onPressed: () => context.go('/confirmation'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: TextButton.icon(
+                key: Key('cancel_reservation_${item.id}'),
+                onPressed: () => _confirmCancelReservation(context, item),
+                icon: const Icon(Icons.cancel_outlined, size: 16, color: AppColors.darkCard),
+                label: const Text(
+                  'Cancelar reserva',
+                  style: TextStyle(
+                    color: AppColors.darkCard,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -339,6 +362,22 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              key: Key('cancel_reservation_${item.id}'),
+              onPressed: () => _confirmCancelReservation(context, item),
+              icon: const Icon(Icons.cancel_outlined, size: 16, color: AppColors.error),
+              label: const Text(
+                'Cancelar reserva',
+                style: TextStyle(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -471,4 +510,95 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
       ),
     );
   }
+
+  void _confirmCancelReservation(BuildContext context, ActiveReservationItem item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel_outlined, color: AppColors.error, size: 26),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '¿Cancelar reserva?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          '¿Deseas cancelar tu reserva en ${item.parkingLotName} (${item.spotNumber})?\n\nTu cupo será liberado de inmediato para otros conductores y no se generará ningún cobro por estancia.',
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: AppColors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    // Libera el espacio en el provider de parqueaderos si aplica
+                    final spaceKey = item.spotNumber.replaceAll('#', '').replaceAll('P-', 'A-');
+                    ref.read(parkingSpacesProvider.notifier).freeSpace(spaceKey);
+
+                    // Cancela la reserva en el provider
+                    ref.read(userReservationsProvider.notifier).cancelReservation(item.id);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppColors.darkCard,
+                        content: Text(
+                          'Reserva en ${item.parkingLotName} cancelada. Cupo liberado.',
+                          style: const TextStyle(color: AppColors.white),
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Sí, cancelar',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text(
+                      'Mantener reserva',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.secondary
+                            : AppColors.darkCard,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

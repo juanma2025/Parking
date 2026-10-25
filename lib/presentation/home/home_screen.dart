@@ -15,6 +15,7 @@ import '../shared/app_drawer.dart';
 import '../shared/app_map.dart';
 import '../shared/avatar_button.dart';
 import '../shared/pill_button.dart';
+import '../shared/section_label.dart';
 import '../shared/status_pill.dart';
 import '../shared/two_tone_title.dart';
 
@@ -297,13 +298,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
-                                  'Explore Parking',
+                                  'Parking',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.title.copyWith(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.4,
                                   ),
                                 ),
                               ),
@@ -597,94 +598,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // (No map, no bottom bar, only platform features, options and how it works)
   // ============================================================================
   Widget _buildLandingContent(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       key: const ValueKey('landing_content'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Hero Header Badge & Title
+        // 1. Hero Header Badge & Title (Clean Apple HIG Layout)
         MotionUtils.staggerEntrance(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(_getTimeIcon(), size: 14, color: AppColors.secondary),
-                  const SizedBox(width: 6),
-                  Text(
-                    '¡${_getTimeGreeting().toUpperCase()}! • SAN JUAN DE PASTO',
-                    style: const TextStyle(
-                      fontFamily: AppTypography.fontFamily,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.secondary,
-                      letterSpacing: 1.0,
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : const Color(0xFFFFF2DF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : AppColors.primary.withAlpha(80),
+                    width: 1,
                   ),
-                ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_getTimeIcon(), size: 13, color: isDark ? AppColors.secondary : const Color(0xFFB46500)),
+                    const SizedBox(width: 5),
+                    Text(
+                      '¡${_getTimeGreeting().toUpperCase()}! · SAN JUAN DE PASTO',
+                      style: TextStyle(
+                        fontFamily: AppTypography.fontFamily,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? AppColors.secondary : const Color(0xFFB46500),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              const StatusPill(
-                text: 'SMART PARKING • PASTO',
-                backgroundColor: Color(0xFFFFF2DF),
-                textColor: Color(0xFFB46500),
-                dotColor: AppColors.primary,
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               const TwoToneTitle(
                 text: 'Tu parqueadero en Pasto, ',
                 highlightText: 'fácil y seguro',
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                'Conectamos conductores con parqueaderos verificados en tiempo real. Encuentra cupo rápido en zonas comerciales y médicas de San Juan de Pasto.',
+                'Encuentra y reserva cupos verificados en tiempo real cerca a centros comerciales y clínicas.',
                 style: AppTypography.body.copyWith(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withAlpha(200)
-                      : AppColors.textSecondaryLight,
-                  height: 1.45,
+                  color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                  fontSize: 13.5,
+                  height: 1.4,
                 ),
               ),
             ],
           ),
           index: 1,
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
 
-        // 2. Section: ¿QUÉ OPCIONES TIENES? with Apple Segmented Control
+        // 2. Section: ELIGE TU PERFIL with Apple Segmented Control
         MotionUtils.staggerEntrance(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '¿QUÉ OPCIONES TIENES?',
-                    style: AppTypography.caption.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                      color: AppColors.textSecondaryLight,
-                      fontSize: 11,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(40),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Elige tu perfil',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.darkCard,
-                      ),
-                    ),
-                  ),
-                ],
+              SectionLabel(
+                '¿QUÉ OPCIONES TIENES?',
+                color: isDark ? AppColors.secondary : null,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // Apple HIG Segmented Pill Selector
               Container(
@@ -1002,17 +984,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.directions_car_filled_rounded,
                   color: AppColors.darkCard,
-                  size: 22,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1020,18 +1002,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const StatusPill(
-                      text: 'PARA CONDUCTORES',
-                      backgroundColor: Color(0xFF333333),
-                      textColor: AppColors.secondary,
-                    ),
-                    const SizedBox(height: 3),
                     Text(
                       'Encuentra y Reserva Cupo',
                       style: AppTypography.title.copyWith(
                         color: AppColors.white,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Disponibilidad garantizada en Pasto',
+                      style: AppTypography.caption.copyWith(
+                        color: Colors.white70,
+                        fontSize: 11.5,
                       ),
                     ),
                   ],
@@ -1046,60 +1030,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             subtitle: 'Cerca a Unicentro, Único, Nova Centro y Hospitales.',
             isDark: true,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildBenefitRow(
             icon: Icons.timer_outlined,
             title: 'Cero filas ni esperas',
-            subtitle: 'Conoce disponibilidad de autos y motos en tiempo real.',
+            subtitle: 'Disponibilidad para autos y motos en tiempo real.',
             isDark: true,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildBenefitRow(
             icon: Icons.verified_user_outlined,
-            title: 'Parqueaderos vigilados',
-            subtitle: 'Tarifas transparentes por hora en COP sin sorpresas.',
+            title: 'Tarifas oficiales y vigiladas',
+            subtitle: 'Precios justos por hora en COP sin cobros sorpresa.',
             isDark: true,
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  'Toca para ingresar',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withAlpha(30),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Explorar como Conductor',
                   style: TextStyle(
-                    color: Colors.white.withAlpha(140),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                flex: 2,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Explorar como Conductor',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.secondary),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+                SizedBox(width: 6),
+                Icon(Icons.arrow_forward_rounded, size: 15, color: AppColors.secondary),
+              ],
+            ),
           ),
         ],
       ),
@@ -1119,11 +1086,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: AppColors.darkCard,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
                 child: const Text(
@@ -1131,7 +1098,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   style: TextStyle(
                     color: AppColors.secondary,
                     fontWeight: FontWeight.w900,
-                    fontSize: 22,
+                    fontSize: 20,
                   ),
                 ),
               ),
@@ -1140,18 +1107,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const StatusPill(
-                      text: 'PARA PROPIETARIOS',
-                      backgroundColor: Color(0xFFF7BD69),
-                      textColor: AppColors.darkCard,
-                    ),
-                    const SizedBox(height: 3),
                     Text(
                       'Monetiza tus Espacios',
                       style: AppTypography.title.copyWith(
                         color: AppColors.darkCard,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Conecta con miles de conductores en Pasto',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.darkCard.withAlpha(180),
+                        fontSize: 11.5,
                       ),
                     ),
                   ],
@@ -1163,63 +1132,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _buildBenefitRow(
             icon: Icons.trending_up_rounded,
             title: 'Más clientes diarios',
-            subtitle: 'Conecta con conductores activos que buscan cupo en Pasto.',
+            subtitle: 'Conductores buscando cupo en Pasto en tiempo real.',
             isDark: false,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildBenefitRow(
             icon: Icons.two_wheeler_rounded,
-            title: 'Control Carros y Motos',
-            subtitle: 'Actualiza cupos disponibles y tarifas al instante.',
+            title: 'Control de cupos',
+            subtitle: 'Administra autos y motos desde tu celular.',
             isDark: false,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildBenefitRow(
             icon: Icons.payments_outlined,
-            title: 'Ingresos sin intermediarios',
+            title: 'Sin intermediarios',
             subtitle: 'Reportes claros de ocupación y cobros por estancia.',
             isDark: false,
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  'Registro en 1 minuto',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              color: AppColors.darkCard.withAlpha(16),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Registrar mi Parqueadero',
                   style: TextStyle(
-                    color: AppColors.darkCard.withAlpha(160),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkCard,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                flex: 2,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Registrar mi Parqueadero',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.darkCard,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.darkCard),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+                SizedBox(width: 6),
+                Icon(Icons.arrow_forward_rounded, size: 15, color: AppColors.darkCard),
+              ],
+            ),
           ),
         ],
       ),

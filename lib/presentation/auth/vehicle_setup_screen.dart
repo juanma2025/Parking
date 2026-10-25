@@ -9,6 +9,7 @@ import '../shared/app_text_field.dart';
 import '../shared/pill_button.dart';
 import '../shared/section_label.dart';
 import '../shared/two_tone_title.dart';
+import '../vehicles/vehicles_provider.dart';
 
 class VehicleSetupScreen extends ConsumerStatefulWidget {
   const VehicleSetupScreen({super.key});
@@ -47,6 +48,21 @@ class _VehicleSetupScreenState extends ConsumerState<VehicleSetupScreen> {
 
     // Save active role and vehicle preferences
     ref.read(userRoleStateProvider.notifier).setRole(UserRole.vehicleOwner);
+
+    final brandModel = _brandModelController.text.trim();
+    ref.read(userVehiclesProvider.notifier).addVehicle(
+      UserVehicleItem(
+        id: 'veh-${DateTime.now().millisecondsSinceEpoch}',
+        plate: plate.toUpperCase(),
+        vehicleType: _vehicleType == 'moto' ? 'Motocicleta' : 'Sedán',
+        brand: brandModel.isNotEmpty ? brandModel : 'Vehículo',
+        model: '',
+        year: '2024',
+        color: 'Gris Plata',
+        isPrimary: true,
+        badges: const ['SOAT al día'],
+      ),
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
