@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/utils/motion_utils.dart';
 
 enum AppCardVariant {
@@ -7,6 +8,7 @@ enum AppCardVariant {
   amber,
   dark,
   white,
+  elevated,
 }
 
 class AppCard extends StatelessWidget {
@@ -18,6 +20,9 @@ class AppCard extends StatelessWidget {
   final double? width;
   final double? height;
   final BoxBorder? border;
+  final double borderRadius;
+  final String? semanticLabel;
+  final HapticType haptic;
 
   const AppCard({
     super.key,
@@ -29,6 +34,9 @@ class AppCard extends StatelessWidget {
     this.width,
     this.height,
     this.border,
+    this.borderRadius = DesignTokens.radiusCard,
+    this.semanticLabel,
+    this.haptic = HapticType.lightImpact,
   });
 
   @override
@@ -36,18 +44,45 @@ class AppCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Color backgroundColor;
+    BoxBorder? effectiveBorder = border;
+
     switch (variant) {
       case AppCardVariant.amber:
         backgroundColor = AppColors.secondary; // #FEC775
+        effectiveBorder ??= Border.all(
+          color: AppColors.primary.withAlpha(90),
+          width: 1,
+        );
         break;
       case AppCardVariant.dark:
-        backgroundColor = isDark ? AppColors.darkSurface : AppColors.darkCard; // #222222
+        backgroundColor = isDark ? DesignTokens.darkSurface : AppColors.darkCard;
+        effectiveBorder ??= Border.all(
+          color: DesignTokens.darkOutline,
+          width: 1,
+        );
         break;
       case AppCardVariant.cream:
-        backgroundColor = isDark ? AppColors.darkSurface : AppColors.lightBackground;
+        backgroundColor =
+            isDark ? DesignTokens.darkSurface : AppColors.lightBackground;
+        effectiveBorder ??= Border.all(
+          color: DesignTokens.outline(isDark),
+          width: 1,
+        );
+        break;
+      case AppCardVariant.elevated:
+        backgroundColor = DesignTokens.surfaceElevated(isDark);
+        effectiveBorder ??= Border.all(
+          color: DesignTokens.outline(isDark),
+          width: 1,
+        );
         break;
       case AppCardVariant.white:
-        backgroundColor = isDark ? AppColors.darkSurface : AppColors.white;
+        // En Dark Mode nunca usa blanco fijo: usa gris oscuro con borde sutil 1px
+        backgroundColor = DesignTokens.surface(isDark);
+        effectiveBorder ??= Border.all(
+          color: DesignTokens.outline(isDark),
+          width: 1,
+        );
         break;
     }
 
@@ -58,8 +93,15 @@ class AppCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusCard),
-        border: border,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: effectiveBorder,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(isDark ? 35 : 10),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: child,
     );
@@ -67,8 +109,10 @@ class AppCard extends StatelessWidget {
     if (onTap != null) {
       return MotionUtils.pressable(
         onTap: onTap,
-        pressedScale: 0.98,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusCard),
+        pressedScale: 0.97,
+        haptic: haptic,
+        semanticLabel: semanticLabel,
+        borderRadius: BorderRadius.circular(borderRadius),
         child: card,
       );
     }

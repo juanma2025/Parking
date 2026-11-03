@@ -15,6 +15,7 @@ class App extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Parking App',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,

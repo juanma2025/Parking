@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/utils/motion_utils.dart';
 import '../../data/datasources/pasto_landmarks_data.dart';
@@ -15,9 +17,15 @@ import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
 import '../shared/app_map.dart';
 import '../shared/avatar_button.dart';
+import '../shared/glass_container.dart';
+import '../shared/primary_button.dart';
 import '../shared/section_label.dart';
+import '../shared/stat_counter.dart';
 import '../shared/status_pill.dart';
+import '../shared/step_carousel.dart';
 import '../shared/two_tone_title.dart';
+import '../shared/zone_chip.dart';
+import 'widgets/guest_map_explorer_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -28,19 +36,55 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+
   List<Map<String, dynamic>> _parkingLots = [];
   bool _isLoading = true;
   String _userName = 'CONDUCTOR';
   int _selectedRoleTab = 0; // 0: Conductor, 1: Parqueadero
+  bool _isGuaranteesExpanded = false;
+  double _scrollOffset = 0.0;
+
+  static const List<StepCarouselItemData> _howItWorksSteps = [
+    StepCarouselItemData(
+      stepNumber: '01',
+      icon: Icons.map_outlined,
+      title: 'Explora el mapa en vivo',
+      subtitle: 'Consulta cupos y tarifas en Pasto sin registrarte.',
+    ),
+    StepCarouselItemData(
+      stepNumber: '02',
+      icon: Icons.touch_app_outlined,
+      title: 'Elige tu zona favorita',
+      subtitle: 'Compara parqueaderos cerca a clínicas y comercios.',
+    ),
+    StepCarouselItemData(
+      stepNumber: '03',
+      icon: Icons.qr_code_2_rounded,
+      title: 'Reserva y entra con QR',
+      subtitle: 'Crea tu cuenta al reservar e ingresa sin filas.',
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadInitialData();
+  }
+
+  void _onScroll() {
+    if (!mounted) return;
+    final nextOffset = _scrollController.offset.clamp(0.0, 220.0);
+    if ((nextOffset - _scrollOffset).abs() > 1.0) {
+      setState(() => _scrollOffset = nextOffset);
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -55,13 +99,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             .eq('id', user.id)
             .maybeSingle();
 
-        if (profile != null && profile['full_name'] != null && (profile['full_name'] as String).isNotEmpty) {
+        if (profile != null &&
+            profile['full_name'] != null &&
+            (profile['full_name'] as String).isNotEmpty) {
           final fullName = profile['full_name'] as String;
           _userName = fullName.split(' ').first.toUpperCase();
         }
       }
 
-      // Fetch active parking lots from Supabase or default to San Juan de Pasto lots
       final response = await Supabase.instance.client
           .from('parking_lots')
           .select()
@@ -73,7 +118,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       } else {
         _parkingLots = _getPastoDefaultParkingLots();
       }
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     } catch (_) {
       _parkingLots = _getPastoDefaultParkingLots();
       if (mounted) {
@@ -83,15 +130,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   List<Map<String, dynamic>> _getPastoDefaultParkingLots() {
-    return PastoDataService.getAllParkingLots().map((p) => {
-      'id': p.id,
-      'name': p.name,
-      'address': p.address,
-      'price_per_hour': p.pricePerHour,
-      'car_spaces': p.carSpaces,
-      'moto_spaces': p.motoSpaces,
-      'distance': p.distanceMeters,
-    }).toList();
+    return PastoDataService.getAllParkingLots()
+        .map((p) => {
+              'id': p.id,
+              'name': p.name,
+              'address': p.address,
+              'price_per_hour': p.pricePerHour,
+              'car_spaces': p.carSpaces,
+              'moto_spaces': p.motoSpaces,
+              'distance': p.distanceMeters,
+            })
+        .toList();
+  }
+
+  int get _totalAvailableSpots {
+    if (_parkingLots.isEmpty) {
+      return PastoDataService.getAllParkingLots()
+          .fold<int>(0, (sum, lot) => sum + lot.totalSpaces);
+    }
+    return _parkingLots.fold<int>(
+      0,
+      (sum, lot) =>
+          sum +
+          ((lot['car_spaces'] as num?)?.toInt() ?? 15) +
+          ((lot['moto_spaces'] as num?)?.toInt() ?? 10),
+    );
   }
 
   String _getDisplayName(User? user, AsyncValue<Profile?> profileAsync) {
@@ -138,11 +201,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   IconData _getTimeIcon() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) {
-      return Icons.wb_sunny_rounded;
+      return Icons.wb_sunny_outlined;
     } else if (hour >= 12 && hour < 19) {
       return Icons.wb_twilight_rounded;
     } else {
-      return Icons.nightlight_round;
+      return Icons.nightlight_outlined;
     }
   }
 
@@ -150,41 +213,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     IconData icon;
     String tooltip;
     if (themeMode == ThemeMode.system) {
-      icon = Icons.brightness_auto_rounded;
+      icon = Icons.brightness_auto_outlined;
       tooltip = 'Tema: Adaptado al dispositivo';
     } else if (themeMode == ThemeMode.dark) {
-      icon = Icons.dark_mode_rounded;
+      icon = Icons.dark_mode_outlined;
       tooltip = 'Tema: Oscuro';
     } else {
-      icon = Icons.light_mode_rounded;
+      icon = Icons.light_mode_outlined;
       tooltip = 'Tema: Claro';
     }
 
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(isDark ? 25 : 8),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+    return MotionUtils.pressable(
+      onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
+      haptic: HapticType.selectionClick,
+      semanticLabel: tooltip,
+      borderRadius: BorderRadius.circular(14),
+      child: Tooltip(
+        message: tooltip,
+        child: Container(
+          constraints: const BoxConstraints(
+            minWidth: DesignTokens.minTouchTarget,
+            minHeight: DesignTokens.minTouchTarget,
           ),
-        ],
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: DesignTokens.surfaceElevated(isDark),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: DesignTokens.outline(isDark),
+              width: 1,
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: DesignTokens.accentText(isDark),
+          ),
+        ),
       ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        iconSize: 16,
-        tooltip: tooltip,
-        icon: Icon(icon, color: AppColors.secondary),
-        onPressed: () => ref.read(themeModeProvider.notifier).toggleTheme(),
-      ),
+    );
+  }
+
+  void _openGuestMap({Landmark? landmark, String? heroTag}) {
+    GuestMapExplorerSheet.show(
+      context,
+      initialLandmark: landmark,
+      heroTag: heroTag,
     );
   }
 
@@ -197,151 +271,1071 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final userProfile = ref.watch(userProfileProvider);
 
-    return Scaffold(
-      drawer: isAuth ? const AppDrawer() : null,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadInitialData,
-          color: AppColors.primary,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: DesignTokens.clampedTextScaler(context),
+      ),
+      child: Scaffold(
+        drawer: isAuth ? const AppDrawer() : null,
+        bottomNavigationBar: !isAuth ? _buildStickyExploreCta(isDark) : null,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompactPhone = constraints.maxWidth < 360;
+              final isTablet = constraints.maxWidth >= 600;
+              final horizontalPadding = isCompactPhone
+                  ? DesignTokens.spacingSm
+                  : (isTablet ? 28.0 : DesignTokens.spacingLg);
+
+              return RefreshIndicator(
+                onRefresh: _loadInitialData,
+                color: DesignTokens.brandAccent,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: 10.0,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // a. Header: Logo + "Parking" completo a la izquierda, acciones limpias a la derecha
+                          MotionUtils.staggerEntrance(
+                            _buildHeader(
+                              context: context,
+                              isAuth: isAuth,
+                              isDark: isDark,
+                              themeMode: themeMode,
+                              user: user,
+                              profileAsync: profileAsync,
+                              avatarUrl: userProfile.avatarUrl,
+                              isCompactPhone: isCompactPhone,
+                            ),
+                            index: 0,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Transición fluida entre Landing (Invitado) y Dashboard (Autenticado)
+                          AnimatedSwitcher(
+                            duration: DesignTokens.durationNormal,
+                            switchInCurve: DesignTokens.springCurve,
+                            switchOutCurve: Curves.easeOutCubic,
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                            child: isAuth
+                                ? _buildAuthenticatedContent(
+                                    context, user, profileAsync, isDark)
+                                : _buildLandingContent(
+                                    context, isDark, isCompactPhone),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================================
+  // a. HEADER (Liquid Glass limpio, altura 56-64 dp, padding 16-20, sin truncar "Parking")
+  // ============================================================================
+  Widget _buildHeader({
+    required BuildContext context,
+    required bool isAuth,
+    required bool isDark,
+    required ThemeMode themeMode,
+    required User? user,
+    required AsyncValue<Profile?> profileAsync,
+    required String? avatarUrl,
+    required bool isCompactPhone,
+  }) {
+    if (isAuth) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: DesignTokens.minTouchTarget,
+            height: DesignTokens.minTouchTarget,
+            decoration: BoxDecoration(
+              color: DesignTokens.surface(isDark),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: DesignTokens.outline(isDark),
+              ),
+            ),
+            child: Builder(
+              builder: (scaffoldContext) => IconButton(
+                tooltip: 'Abrir menú',
+                icon: Icon(
+                  Icons.menu_rounded,
+                  color: DesignTokens.onSurface(isDark),
+                ),
+                onPressed: () {
+                  MotionUtils.triggerHaptic(HapticType.lightImpact);
+                  Scaffold.of(scaffoldContext).openDrawer();
+                },
+              ),
+            ),
+          ),
+          Text(
+            'Explore Parking',
+            style: DesignTokens.headline(isDark),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildThemeToggleButton(themeMode, isDark),
+              const SizedBox(width: DesignTokens.spacingXs),
+              Hero(
+                tag: 'user-avatar-hero',
+                child: AvatarButton(
+                  avatarUrl: avatarUrl,
+                  initials: _getUserInitials(user, profileAsync),
+                  onTap: () => context.go('/profile'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // Un único contenedor Liquid Glass limpio, sin cajas anidadas ni bordes dobles,
+    // altura 60 dp (rango 56-64 dp), padding horizontal 16-20 dp y separación >= 12 dp.
+    return GlassContainer(
+      borderRadius: DesignTokens.radiusCard,
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompactPhone ? 16.0 : 20.0,
+        vertical: 6.0,
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: 48.0, // Con 6.0 * 2 de padding vertical => 60 dp de altura total (56-64 dp)
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Izquierda: Logo + nombre completo "Parking" (nunca truncado, área táctil >= 48x48 dp)
+            MotionUtils.pressable(
+              haptic: HapticType.lightImpact,
+              semanticLabel: 'Parking inicio',
+              onTap: () {
+                if (_scrollController.hasClients) {
+                  _scrollController.animateTo(
+                    0,
+                    duration: DesignTokens.durationNormal,
+                    curve: DesignTokens.springCurve,
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: DesignTokens.minTouchTarget,
+                  minWidth: DesignTokens.minTouchTarget,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Hero(
+                      tag: 'app-official-logo',
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/images/app_logo.png',
+                          width: 28,
+                          height: 28,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: DesignTokens.brandAccent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.local_parking_rounded,
+                              color: DesignTokens.onBrandAccent,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Parking',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontFamily: DesignTokens.fontFamily,
+                          fontSize: 17.0,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: DesignTokens.onSurface(isDark),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Derecha: TextButton discreto "Iniciar sesión" + único botón primario "Registro"
+            const Flexible(
+              child: AnimatedAuthActions(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================================
+  // STICKY PRIMARY CTA AT BOTTOM (Fase 1.4, Fase 2.4, Fase 3.1)
+  // ============================================================================
+  Widget _buildStickyExploreCta(bool isDark) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          DesignTokens.spacingMd,
+          6,
+          DesignTokens.spacingMd,
+          10,
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: GlassContainer(
+            borderRadius: DesignTokens.radiusCard,
+            padding: const EdgeInsets.all(DesignTokens.spacingXs),
+            child: PrimaryButton(
+              label: 'Explorar mapa',
+              icon: Icons.explore_rounded,
+              badgeText: 'Sin registro',
+              heroTag: 'hero-explore-map-cta',
+              onPressed: () => _openGuestMap(heroTag: 'hero-explore-map-cta'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================================
+  // UNAUTHENTICATED LANDING VIEW (Fases 1 a 4)
+  // ============================================================================
+  Widget _buildLandingContent(
+    BuildContext context,
+    bool isDark,
+    bool isCompactPhone,
+  ) {
+    final reduceMotion = MotionUtils.reduceMotion(context);
+    final parallaxOffset = reduceMotion ? 0.0 : -(_scrollOffset * 0.12);
+    final landmarks = PastoDataService.getLandmarks();
+
+    return Column(
+      key: const ValueKey('landing_content'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // b. HERO: Titular de máximo 6 palabras + una sola línea de apoyo + Parallax sutil + StatCounter
+        MotionUtils.staggerEntrance(
+          Transform.translate(
+            offset: Offset(0, parallaxOffset),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Top App Bar (Hamburger + Avatar if Auth; Logo Hero + AnimatedAuthActions if Unauth)
-                MotionUtils.staggerEntrance(
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (isAuth) ...[
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkCard : AppColors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(8),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                Wrap(
+                  spacing: DesignTokens.spacingXs,
+                  runSpacing: DesignTokens.spacingXs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: DesignTokens.surface(isDark),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark
+                              ? DesignTokens.darkOutline
+                              : DesignTokens.brandAccent.withAlpha(90),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getTimeIcon(),
+                            size: 14,
+                            color: DesignTokens.accentText(isDark),
                           ),
-                          child: Builder(
-                            builder: (scaffoldContext) => IconButton(
-                              icon: Icon(Icons.menu_rounded, color: isDark ? AppColors.white : AppColors.darkCard),
-                              onPressed: () {
-                                Scaffold.of(scaffoldContext).openDrawer();
-                              },
-                            ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${_getTimeGreeting().toUpperCase()} · PASTO',
+                            style: DesignTokens.overline(isDark),
                           ),
-                        ),
-                        Text(
-                          'Explore Parking',
-                          style: AppTypography.title.copyWith(fontSize: 18),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildThemeToggleButton(themeMode, isDark),
-                            const SizedBox(width: 8),
-                            Hero(
-                              tag: 'user-avatar-hero',
-                              child: AvatarButton(
-                                avatarUrl: userProfile.avatarUrl,
-                                initials: _getUserInitials(user, profileAsync),
-                                onTap: () => context.go('/profile'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ] else ...[
-                        // Guest mode: Left brand (Logo + Name) & Right compact actions with Theme Toggle
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Hero(
-                              tag: 'app-official-logo',
-                              child: Container(
-                                width: 34,
-                                height: 34,
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.darkCard : AppColors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withAlpha(isDark ? 25 : 8),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Image.asset(
-                                    'assets/images/app_logo.png',
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.local_parking_rounded,
-                                        color: AppColors.darkCard,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Parking',
-                              style: AppTypography.title.copyWith(
-                                fontSize: 16.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildThemeToggleButton(themeMode, isDark),
-                            const SizedBox(width: 5),
-                            const AnimatedAuthActions(),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                  index: 0,
+                        ],
+                      ),
+                    ),
+                    StatCounter(
+                      value: _totalAvailableSpots,
+                      label: 'cupos hoy',
+                      isLoading: _isLoading,
+                      onTap: () =>
+                          _openGuestMap(heroTag: 'hero-explore-map-cta'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 10),
+                // Titular de máximo 6 palabras ("Parquea en Pasto, sin dar vueltas")
+                const TwoToneTitle(
+                  text: 'Parquea en Pasto, ',
+                  highlightText: 'sin dar vueltas',
+                ),
+                const SizedBox(height: 6),
+                // Una sola línea de apoyo (máximo 2 líneas en pantallas pequeñas)
+                Text(
+                  'Cupos en tiempo real cerca a clínicas y centros comerciales.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: DesignTokens.body(isDark),
+                ),
+              ],
+            ),
+          ),
+          index: 1,
+        ),
+        const SizedBox(height: DesignTokens.spacingMd),
 
-                // 2. Animated Switcher between Landing View (Unauthenticated) & Dashboard View (Authenticated)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 320),
-                  switchInCurve: Curves.easeInOutCubic,
-                  switchOutCurve: Curves.easeInOutCubic,
-                  transitionBuilder: (child, animation) => FadeTransition(
+        // c. SELECTOR CONDUCTOR / PARQUEADERO (Segmented Control) + 3 Garantías Fusionadas + Acordeón "Ver más"
+        MotionUtils.staggerEntrance(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionLabel(
+                '¿QUÉ OPCIONES TIENES?',
+                color: DesignTokens.accentText(isDark),
+              ),
+              const SizedBox(height: DesignTokens.spacingXs),
+              _buildSegmentedRoleSelector(isDark),
+              const SizedBox(height: 10),
+              AnimatedSwitcher(
+                duration: DesignTokens.durationNormal,
+                switchInCurve: DesignTokens.springCurve,
+                switchOutCurve: Curves.easeOutCubic,
+                transitionBuilder: (child, animation) {
+                  if (reduceMotion) {
+                    return FadeTransition(opacity: animation, child: child);
+                  }
+                  return FadeTransition(
                     opacity: animation,
-                    child: child,
+                    child: ScaleTransition(
+                      scale: Tween<double>(
+                        begin: 0.96,
+                        end: 1.0,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: _selectedRoleTab == 0
+                    ? _buildConductorRoleCard(context, isDark)
+                    : _buildOwnerRoleCard(context, isDark),
+              ),
+            ],
+          ),
+          index: 2,
+        ),
+        const SizedBox(height: DesignTokens.spacingLg),
+
+        // d. "CÓMO FUNCIONA": Carrusel horizontal de 3 pasos con indicador de página
+        MotionUtils.staggerEntrance(
+          StepCarousel(
+            steps: _howItWorksSteps,
+            isLoading: _isLoading,
+          ),
+          index: 3,
+        ),
+        const SizedBox(height: DesignTokens.spacingLg),
+
+        // e. CHIPS DE ZONAS TAPPABLES: Al tocar abren el mapa centrado en esa zona
+        MotionUtils.staggerEntrance(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: SectionLabel(
+                      'ZONAS EN SAN JUAN DE PASTO',
+                      color: DesignTokens.accentText(isDark),
+                    ),
                   ),
-                  child: isAuth
-                      ? _buildAuthenticatedContent(context, user, profileAsync)
-                      : _buildLandingContent(context),
+                  Text(
+                    'Toca para abrir mapa',
+                    style: DesignTokens.caption(isDark),
+                  ),
+                ],
+              ),
+              const SizedBox(height: DesignTokens.spacingXs),
+              Wrap(
+                spacing: DesignTokens.spacingXs,
+                runSpacing: DesignTokens.spacingXs,
+                children: landmarks
+                    .map(
+                      (landmark) => ZoneChip(
+                        landmark: landmark,
+                        onTap: () => _openGuestMap(
+                          landmark: landmark,
+                          heroTag: 'zone-chip-hero-${landmark.id}',
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
+          index: 4,
+        ),
+        const SizedBox(height: DesignTokens.spacingLg),
+
+        // f. FOOTER MÍNIMO (Conserva textos legales intactos)
+        MotionUtils.staggerEntrance(
+          _buildMinimalFooter(context, isDark),
+          index: 5,
+        ),
+        const SizedBox(height: DesignTokens.spacingSm),
+      ],
+    );
+  }
+
+  // Segmented Control (Conductor / Parqueadero) con áreas táctiles >= 48 dp y física Spring
+  Widget _buildSegmentedRoleSelector(bool isDark) {
+    return Container(
+      height: DesignTokens.minTouchTarget,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? DesignTokens.darkSurface : const Color(0xFFE4E4E7),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusPill),
+        border: Border.all(
+          color: DesignTokens.outline(isDark),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: MotionUtils.pressable(
+              onTap: () => setState(() => _selectedRoleTab = 0),
+              haptic: HapticType.selectionClick,
+              semanticLabel: 'Opción Conductor',
+              borderRadius: BorderRadius.circular(DesignTokens.radiusPill),
+              child: AnimatedContainer(
+                duration: DesignTokens.durationNormal,
+                curve: DesignTokens.springCurve,
+                decoration: BoxDecoration(
+                  color: _selectedRoleTab == 0
+                      ? DesignTokens.brandAccent
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusPill),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.directions_car_outlined,
+                      size: 16,
+                      color: _selectedRoleTab == 0
+                          ? DesignTokens.onBrandAccent
+                          : DesignTokens.onSurfaceVariant(isDark),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Conductor',
+                      style: DesignTokens.bodyBold(isDark).copyWith(
+                        color: _selectedRoleTab == 0
+                            ? DesignTokens.onBrandAccent
+                            : DesignTokens.onSurfaceVariant(isDark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: MotionUtils.pressable(
+              onTap: () => setState(() => _selectedRoleTab = 1),
+              haptic: HapticType.selectionClick,
+              semanticLabel: 'Opción Parqueadero',
+              borderRadius: BorderRadius.circular(DesignTokens.radiusPill),
+              child: AnimatedContainer(
+                duration: DesignTokens.durationNormal,
+                curve: DesignTokens.springCurve,
+                decoration: BoxDecoration(
+                  color: _selectedRoleTab == 1
+                      ? DesignTokens.brandAccent
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusPill),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.local_parking_rounded,
+                      size: 16,
+                      color: _selectedRoleTab == 1
+                          ? DesignTokens.onBrandAccent
+                          : DesignTokens.onSurfaceVariant(isDark),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Parqueadero',
+                      style: DesignTokens.bodyBold(isDark).copyWith(
+                        color: _selectedRoleTab == 1
+                            ? DesignTokens.onBrandAccent
+                            : DesignTokens.onSurfaceVariant(isDark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Card Conductor con las 3 Garantías Fusionadas (Icono + Etiqueta Corta) + Acordeón "Ver más"
+  Widget _buildConductorRoleCard(BuildContext context, bool isDark) {
+    return AppCard(
+      key: const ValueKey('conductor_card'),
+      variant: AppCardVariant.white,
+      padding: const EdgeInsets.all(DesignTokens.spacingMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: DesignTokens.brandAccent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.directions_car_outlined,
+                  color: DesignTokens.onBrandAccent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingSm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Encuentra y Reserva Cupo',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DesignTokens.headline(isDark),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Para autos y motos en zonas clave de Pasto.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DesignTokens.caption(isDark),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spacingSm),
+
+          // 3 Iconos con etiqueta corta fusionados (Fase 1.2: "Verificados", "Tiempo real", "Pago fácil")
+          Row(
+            children: [
+              Expanded(
+                child: _buildGuaranteeBadge(
+                  icon: Icons.verified_user_outlined,
+                  label: 'Verificados',
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingXs),
+              Expanded(
+                child: _buildGuaranteeBadge(
+                  icon: Icons.bolt_rounded,
+                  label: 'Tiempo real',
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingXs),
+              Expanded(
+                child: _buildGuaranteeBadge(
+                  icon: Icons.qr_code_scanner_rounded,
+                  label: 'Pago fácil',
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Acordeón "Ver más" con animación fluida de altura (Fase 1.2 y Fase 2.6)
+          _buildExpandableDetailsAccordion(
+            isDark: isDark,
+            items: const [
+              (
+                icon: Icons.shield_outlined,
+                text: 'Cámaras de seguridad y personal de control en cada punto.'
+              ),
+              (
+                icon: Icons.schedule_rounded,
+                text: 'Tarifas oficiales por hora en COP sin cobros sorpresa.'
+              ),
+              (
+                icon: Icons.account_balance_wallet_outlined,
+                text: 'Paga rápido con Nequi, transferencia o efectivo.'
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Card Parqueadero con 3 Etiquetas Cortas + Acordeón "Ver más" + Acción de Registro
+  Widget _buildOwnerRoleCard(BuildContext context, bool isDark) {
+    return AppCard(
+      key: const ValueKey('owner_card'),
+      variant: AppCardVariant.white,
+      padding: const EdgeInsets.all(DesignTokens.spacingMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: DesignTokens.brandAccent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.storefront_outlined,
+                  color: DesignTokens.onBrandAccent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingSm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Monetiza tus Espacios',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DesignTokens.headline(isDark),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Recibe reservas digitales de conductores en Pasto.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DesignTokens.caption(isDark),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spacingSm),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildGuaranteeBadge(
+                  icon: Icons.trending_up_rounded,
+                  label: 'Más clientes',
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingXs),
+              Expanded(
+                child: _buildGuaranteeBadge(
+                  icon: Icons.grid_view_rounded,
+                  label: 'Control total',
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingXs),
+              Expanded(
+                child: _buildGuaranteeBadge(
+                  icon: Icons.payments_outlined,
+                  label: 'Cobro directo',
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          _buildExpandableDetailsAccordion(
+            isDark: isDark,
+            items: const [
+              (
+                icon: Icons.qr_code_2_rounded,
+                text: 'Valida el ingreso de vehículos con lectura QR al instante.'
+              ),
+              (
+                icon: Icons.bar_chart_rounded,
+                text: 'Panel en vivo para habilitar cupos y ver ingresos diarios.'
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          MotionUtils.pressable(
+            onTap: () => context.push('/register'),
+            haptic: HapticType.lightImpact,
+            semanticLabel: 'Registrar mi Parqueadero',
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(
+                minHeight: DesignTokens.minTouchTarget,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: DesignTokens.surfaceElevated(isDark),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: DesignTokens.brandAccent.withAlpha(110),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Registrar mi Parqueadero',
+                    style: DesignTokens.bodyBold(isDark).copyWith(
+                      color: DesignTokens.accentText(isDark),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: DesignTokens.accentText(isDark),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuaranteeBadge({
+    required IconData icon,
+    required String label,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spacingXs,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: DesignTokens.surfaceElevated(isDark),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: DesignTokens.outline(isDark),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: DesignTokens.accentText(isDark),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: DesignTokens.caption(isDark).copyWith(
+              fontWeight: FontWeight.w700,
+              color: DesignTokens.onSurface(isDark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpandableDetailsAccordion({
+    required bool isDark,
+    required List<({IconData icon, String text})> items,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MotionUtils.pressable(
+          onTap: () => setState(
+              () => _isGuaranteesExpanded = !_isGuaranteesExpanded),
+          haptic: HapticType.selectionClick,
+          semanticLabel: _isGuaranteesExpanded
+              ? 'Ocultar detalles de garantías'
+              : 'Ver más detalles de garantías',
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            constraints: const BoxConstraints(
+              minHeight: DesignTokens.minTouchTarget,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingXs,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _isGuaranteesExpanded
+                      ? 'Ver menos detalles'
+                      : 'Ver más detalles',
+                  style: DesignTokens.caption(isDark).copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: DesignTokens.accentText(isDark),
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _isGuaranteesExpanded ? 0.5 : 0.0,
+                  duration: DesignTokens.durationNormal,
+                  curve: DesignTokens.springCurve,
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: DesignTokens.accentText(isDark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: DesignTokens.durationNormal,
+          curve: DesignTokens.springCurve,
+          alignment: Alignment.topCenter,
+          child: _isGuaranteesExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(
+                    top: DesignTokens.spacing2xs,
+                    left: DesignTokens.spacing2xs,
+                    right: DesignTokens.spacing2xs,
+                  ),
+                  child: Column(
+                    children: items
+                        .map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: DesignTokens.spacingXs,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  item.icon,
+                                  size: 16,
+                                  color: DesignTokens.accentText(isDark),
+                                ),
+                                const SizedBox(width: DesignTokens.spacingXs),
+                                Expanded(
+                                  child: Text(
+                                    item.text,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: DesignTokens.caption(isDark),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  // f. Footer mínimo (Mantiene textos legales exactos: Términos del Servicio, Privacidad, Soporte)
+  Widget _buildMinimalFooter(BuildContext context, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.only(
+        top: DesignTokens.spacingSm,
+        bottom: DesignTokens.spacingXs,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: DesignTokens.outline(isDark),
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: DesignTokens.spacingSm,
+            runSpacing: DesignTokens.spacing2xs,
+            children: [
+              _buildFooterLink(
+                label: 'Términos del Servicio',
+                isDark: isDark,
+                onTap: () => _showLegalSheet(
+                  context,
+                  title: 'Términos del Servicio',
+                  content:
+                      'Uso de reservas verificadas y acceso QR en la red de parqueaderos aliados de San Juan de Pasto.',
+                ),
+              ),
+              _buildFooterLink(
+                label: 'Privacidad',
+                isDark: isDark,
+                onTap: () => _showLegalSheet(
+                  context,
+                  title: 'Privacidad',
+                  content:
+                      'Protegemos tus datos personales y placas vehiculares bajo estándares de seguridad cifrada.',
+                ),
+              ),
+              _buildFooterLink(
+                label: 'Soporte',
+                isDark: isDark,
+                onTap: () => _showLegalSheet(
+                  context,
+                  title: 'Soporte',
+                  content:
+                      'Atención prioritaria para conductores y parqueaderos en San Juan de Pasto 24/7.',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spacing2xs),
+          Text(
+            '© 2026 Parking Pasto · San Juan de Pasto, Nariño',
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: DesignTokens.caption(isDark),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterLink({
+    required String label,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    final linkColor = DesignTokens.accentText(isDark);
+    return MotionUtils.pressable(
+      onTap: onTap,
+      haptic: HapticType.lightImpact,
+      semanticLabel: label,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        constraints: const BoxConstraints(
+          minHeight: DesignTokens.minTouchTarget,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: DesignTokens.caption(isDark).copyWith(
+            fontWeight: FontWeight.w700,
+            color: linkColor,
+            decoration: TextDecoration.underline,
+            decorationColor: linkColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLegalSheet(
+    BuildContext context, {
+    required String title,
+    required String content,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(DesignTokens.spacingMd),
+          child: AppCard(
+            padding: const EdgeInsets.all(DesignTokens.spacingLg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: DesignTokens.headline(isDark),
+                ),
+                const SizedBox(height: DesignTokens.spacingXs),
+                Text(
+                  content,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: DesignTokens.body(isDark),
+                ),
+                const SizedBox(height: DesignTokens.spacingMd),
+                PrimaryButton(
+                  label: 'Entendido',
+                  onPressed: () => Navigator.of(ctx).pop(),
                 ),
               ],
             ),
@@ -358,24 +1352,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     User? user,
     AsyncValue<Profile?> profileAsync,
+    bool isDark,
   ) {
     return Column(
       key: const ValueKey('authenticated_content'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Greeting & Title
         MotionUtils.staggerEntrance(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(_getTimeIcon(), size: 14, color: AppColors.secondary),
+                  Icon(
+                    _getTimeIcon(),
+                    size: 14,
+                    color: DesignTokens.accentText(isDark),
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '¡${_getTimeGreeting().toUpperCase()}, ${_getDisplayName(user, profileAsync)}!',
                     style: AppTypography.sectionLabel.copyWith(
-                      color: AppColors.secondary,
+                      color: DesignTokens.accentText(isDark),
                       letterSpacing: 1.0,
                       fontWeight: FontWeight.w800,
                     ),
@@ -393,35 +1391,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 18),
 
-        // Pill Search Bar
+        // Pill Search Bar (Adaptive Light/Dark surface)
         MotionUtils.staggerEntrance(
           Container(
             height: 56,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: AppColors.white,
+              color: DesignTokens.surface(isDark),
               borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(6),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              border: Border.all(
+                color: DesignTokens.outline(isDark),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.search_rounded, color: AppColors.primary, size: 24),
+                const Icon(
+                  Icons.search_rounded,
+                  color: DesignTokens.brandAccent,
+                  size: 24,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    style: AppTypography.body,
+                    style: DesignTokens.body(isDark).copyWith(
+                      color: DesignTokens.onSurface(isDark),
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Buscar por dirección o zona en Pasto...',
-                      hintStyle: AppTypography.body.copyWith(
-                        color: AppColors.textSecondaryLight.withAlpha(160),
-                      ),
+                      hintStyle: DesignTokens.body(isDark),
                       fillColor: Colors.transparent,
                       contentPadding: EdgeInsets.zero,
                       border: InputBorder.none,
@@ -431,7 +1429,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.mic_none_rounded, color: AppColors.textSecondaryLight),
+                  icon: Icon(
+                    Icons.mic_none_rounded,
+                    color: DesignTokens.onSurfaceVariant(isDark),
+                  ),
                   onPressed: () {},
                 ),
               ],
@@ -441,7 +1442,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 18),
 
-        // Landmarks Quick Access Bar (San Juan de Pasto)
+        // Landmarks Quick Access Bar
         MotionUtils.staggerEntrance(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,104 +1450,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Flexible(
-                    child: Text(
+                  Flexible(
+                    child: SectionLabel(
                       'PUNTOS CLAVE EN PASTO',
-                      style: TextStyle(
-                        fontFamily: AppTypography.fontFamily,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: AppColors.secondary,
-                        fontSize: 11.5,
-                      ),
+                      color: DesignTokens.accentText(isDark),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(45),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        'Toca para ver cupos',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.darkCard,
-                        ),
-                      ),
-                    ),
+                  StatCounter(
+                    value: _totalAvailableSpots,
+                    label: 'cupos',
+                    isLoading: _isLoading,
                   ),
                 ],
               ),
               const SizedBox(height: 10),
               SizedBox(
-                height: 38,
+                height: DesignTokens.minTouchTarget,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
                   children: PastoDataService.getLandmarks().map((landmark) {
-                    final isMall = landmark.category == LandmarkCategory.shoppingMall;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8.0),
-                      child: MotionUtils.pressable(
-                        onTap: () => AppMap.showLandmarkDetails(context, landmark),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isMall ? AppColors.primary.withAlpha(120) : const Color(0xFFFF3B30).withAlpha(100),
-                              width: 1.2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(6),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                landmark.icon,
-                                size: 15,
-                                color: isMall ? AppColors.darkCard : const Color(0xFFFF3B30),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                landmark.shortName,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: isMall ? AppColors.darkCard : const Color(0xFFC92A2A),
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: isMall ? AppColors.primary : const Color(0xFFFFECEB),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '${landmark.nearbyParkingLots.length} P',
-                                  style: TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: isMall ? AppColors.darkCard : const Color(0xFFFF3B30),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      child: ZoneChip(
+                        landmark: landmark,
+                        onTap: () =>
+                            AppMap.showLandmarkDetails(context, landmark),
                       ),
                     );
                   }).toList(),
@@ -558,28 +1488,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 18),
 
-        // OpenStreetMap View (San Juan de Pasto)
+        // OpenStreetMap View with Skeleton Shimmer fallback
         MotionUtils.staggerEntrance(
           ClipRRect(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusCardLg),
             child: Container(
               height: 290,
               decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.black.withAlpha(15), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: DesignTokens.surface(isDark),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusCardLg),
+                border: Border.all(
+                  color: DesignTokens.outline(isDark),
+                ),
               ),
-              child: const AppMap(
-                height: 290,
-                showControls: true,
-              ),
+              child: _isLoading
+                  ? Shimmer.fromColors(
+                      baseColor: isDark
+                          ? DesignTokens.darkSurface
+                          : const Color(0xFFE4E4E7),
+                      highlightColor: isDark
+                          ? DesignTokens.darkSurfaceElevated
+                          : const Color(0xFFF4F4F5),
+                      child: Container(color: Colors.white),
+                    )
+                  : const AppMap(
+                      height: 290,
+                      showControls: true,
+                    ),
             ),
           ),
           index: 4,
@@ -588,786 +1523,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         // Recommended Parking Lots Cards
         MotionUtils.staggerEntrance(
-          _buildRecommendationsSection(),
+          _buildRecommendationsSection(isDark),
           index: 5,
         ),
-        const SizedBox(height: 80), // Padding for BottomBar5
+        const SizedBox(height: 80),
       ],
     );
   }
 
-  // ============================================================================
-  // UNAUTHENTICATED LANDING VIEW: Informative Platform Showcase
-  // (No map, no bottom bar, only platform features, options and how it works)
-  // ============================================================================
-  Widget _buildLandingContent(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Column(
-      key: const ValueKey('landing_content'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. Hero Header Badge & Title (Clean Apple HIG Layout)
-        MotionUtils.staggerEntrance(
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkCard : const Color(0xFFFFF2DF),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDark ? Colors.white12 : AppColors.primary.withAlpha(80),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_getTimeIcon(), size: 13, color: isDark ? AppColors.secondary : const Color(0xFFB46500)),
-                    const SizedBox(width: 5),
-                    Text(
-                      '¡${_getTimeGreeting().toUpperCase()}! · SAN JUAN DE PASTO',
-                      style: TextStyle(
-                        fontFamily: AppTypography.fontFamily,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? AppColors.secondary : const Color(0xFFB46500),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              const TwoToneTitle(
-                text: 'Tu parqueadero en Pasto, ',
-                highlightText: 'fácil y seguro',
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Encuentra y reserva cupos verificados en tiempo real cerca a centros comerciales y clínicas.',
-                style: AppTypography.body.copyWith(
-                  color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
-                  fontSize: 13.5,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-          index: 1,
-        ),
-        const SizedBox(height: 18),
-
-        // 2. Section: ELIGE TU PERFIL with Apple Segmented Control
-        MotionUtils.staggerEntrance(
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionLabel(
-                '¿QUÉ OPCIONES TIENES?',
-                color: isDark ? AppColors.secondary : null,
-              ),
-              const SizedBox(height: 8),
-
-              // Apple HIG Segmented Pill Selector
-              Container(
-                height: 44,
-                padding: const EdgeInsets.all(3.5),
-                decoration: BoxDecoration(
-                  color: AppColors.darkCard,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.white.withAlpha(25), width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: MotionUtils.pressable(
-                        onTap: () => setState(() => _selectedRoleTab = 0),
-                        borderRadius: BorderRadius.circular(18),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeInOutCubic,
-                          decoration: BoxDecoration(
-                            color: _selectedRoleTab == 0 ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: _selectedRoleTab == 0
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.primary.withAlpha(80),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 1),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.directions_car_filled_rounded,
-                                size: 15,
-                                color: _selectedRoleTab == 0 ? AppColors.darkCard : Colors.white70,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Conductor',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: _selectedRoleTab == 0 ? AppColors.darkCard : Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: MotionUtils.pressable(
-                        onTap: () => setState(() => _selectedRoleTab = 1),
-                        borderRadius: BorderRadius.circular(18),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeInOutCubic,
-                          decoration: BoxDecoration(
-                            color: _selectedRoleTab == 1 ? AppColors.secondary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: _selectedRoleTab == 1
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.secondary.withAlpha(80),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 1),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.local_parking_rounded,
-                                size: 15,
-                                color: _selectedRoleTab == 1 ? AppColors.darkCard : Colors.white70,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Parqueadero',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: _selectedRoleTab == 1 ? AppColors.darkCard : Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Animated Profile Card
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                switchInCurve: Curves.easeInOutCubic,
-                switchOutCurve: Curves.easeInOutCubic,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: child,
-                ),
-                child: _selectedRoleTab == 0
-                    ? _buildConductorCard(context)
-                    : _buildOwnerCard(context),
-              ),
-            ],
-          ),
-          index: 2,
-        ),
-        const SizedBox(height: 28),
-
-        // 3. Section: ¿CÓMO FUNCIONA? - 3 Clear Steps with High-Contrast Highlighted Titles
-        MotionUtils.staggerEntrance(
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '¿CÓMO FUNCIONA?',
-                style: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                  color: AppColors.textSecondaryLight,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const TwoToneTitle(
-                text: 'Fácil en ',
-                highlightText: '3 pasos',
-              ),
-              const SizedBox(height: 14),
-
-              _buildStepItem(
-                stepNumber: '01',
-                title: 'Crea tu cuenta gratis',
-                description: 'Elige tu rol (Conductor o Parqueadero) en menos de 1 minuto sin trámites complicados.',
-                icon: Icons.person_add_alt_1_rounded,
-              ),
-              const SizedBox(height: 12),
-
-              _buildStepItem(
-                stepNumber: '02',
-                title: 'Accede al mapa en vivo de Pasto',
-                description: 'Al iniciar sesión, se desbloquea el mapa satelital con los parqueaderos cercanos, centros comerciales, hospitales y tarifas en COP.',
-                icon: Icons.map_rounded,
-              ),
-              const SizedBox(height: 12),
-
-              _buildStepItem(
-                stepNumber: '03',
-                title: 'Reserva y asegura tu espacio',
-                description: 'Confirma las horas de tu estancia y obtén un código de acceso digital para ingresar de inmediato sin filas.',
-                icon: Icons.qr_code_2_rounded,
-              ),
-            ],
-          ),
-          index: 3,
-        ),
-        const SizedBox(height: 28),
-
-        // 4. Section: COBERTURA Y GARANTÍAS EN SAN JUAN DE PASTO (Extended White Card)
-        MotionUtils.staggerEntrance(
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(6),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(45),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.location_on_rounded, color: AppColors.darkCard, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'COBERTURA EN SAN JUAN DE PASTO',
-                            style: TextStyle(
-                              fontFamily: AppTypography.fontFamily,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11,
-                              color: Color(0xFFB46500),
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                          Text(
-                            'Puntos clave integrados',
-                            style: TextStyle(
-                              fontFamily: AppTypography.fontFamily,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Location Chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: const [
-                    _LocationPill(text: '🛍️ Unicentro Pasto'),
-                    _LocationPill(text: '🛍️ C.C. Único Outlet'),
-                    _LocationPill(text: '🛍️ Pasaje Nova Centro'),
-                    _LocationPill(text: '🛍️ C.C. Belalcázar'),
-                    _LocationPill(text: '🏥 Hosp. Departamental HUDN'),
-                    _LocationPill(text: '🏥 Hospital San Pedro'),
-                    _LocationPill(text: '🏥 Hospital Infantil'),
-                    _LocationPill(text: '🏥 Clínica Pasto'),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                const Divider(color: Color(0xFFE2E8F0), height: 1, thickness: 1),
-                const SizedBox(height: 14),
-
-                // Guarantees Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.verified_outlined, color: Color(0xFFB46500), size: 16),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'VENTAJAS Y GARANTÍAS DEL SERVICIO',
-                      style: TextStyle(
-                        fontFamily: AppTypography.fontFamily,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                        color: Color(0xFFB46500),
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Guarantee 1
-                _buildExtendedFeatureItem(
-                  icon: Icons.shield_outlined,
-                  title: 'Parqueaderos 100% Verificados',
-                  description: 'Espacios inspeccionados con cámaras de vigilancia, personal de control y soporte.',
-                ),
-
-                // Guarantee 2
-                _buildExtendedFeatureItem(
-                  icon: Icons.bolt_rounded,
-                  title: 'Disponibilidad y Cupos en Tiempo Real',
-                  description: 'Conoce con certeza cuántos cupos quedan para autos y motos antes de iniciar tu viaje.',
-                ),
-
-                // Guarantee 3
-                _buildExtendedFeatureItem(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Tarifas Claras y Múltiples Medios de Pago',
-                  description: 'Precios en COP transparentes por hora. Pagos rápidos por Nequi, transferencias o efectivo.',
-                ),
-                const SizedBox(height: 4),
-
-                // Lock banner
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.lock_open_rounded, size: 16, color: Color(0xFF0F172A)),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'El mapa satelital interactivo, rutas GPS y reserva de cupos se activan al iniciar sesión.',
-                          style: TextStyle(
-                            fontFamily: AppTypography.fontFamily,
-                            color: Color(0xFF1E293B),
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          index: 4,
-        ),
-        const SizedBox(height: 24),
-
-        // 5. Landing Footer (Replacing duplicate bottom buttons)
-        MotionUtils.staggerEntrance(
-          _buildLandingFooter(context, isDark),
-          index: 5,
-        ),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-
-  // Focused Card: Conductor Mode
-  Widget _buildConductorCard(BuildContext context) {
-    return AppCard(
-      key: const ValueKey('conductor_card'),
-      variant: AppCardVariant.dark,
-      padding: const EdgeInsets.all(18),
-      onTap: () => context.push('/login'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.directions_car_filled_rounded,
-                  color: AppColors.darkCard,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Encuentra y Reserva Cupo',
-                      style: AppTypography.title.copyWith(
-                        color: AppColors.white,
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Disponibilidad garantizada en Pasto',
-                      style: AppTypography.caption.copyWith(
-                        color: Colors.white70,
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _buildBenefitRow(
-            icon: Icons.location_on_outlined,
-            title: 'Zonas estratégicas en Pasto',
-            subtitle: 'Cerca a Unicentro, Único, Nova Centro y Hospitales.',
-            isDark: true,
-          ),
-          const SizedBox(height: 8),
-          _buildBenefitRow(
-            icon: Icons.timer_outlined,
-            title: 'Cero filas ni esperas',
-            subtitle: 'Disponibilidad para autos y motos en tiempo real.',
-            isDark: true,
-          ),
-          const SizedBox(height: 8),
-          _buildBenefitRow(
-            icon: Icons.verified_user_outlined,
-            title: 'Tarifas oficiales y vigiladas',
-            subtitle: 'Precios justos por hora en COP sin cobros sorpresa.',
-            isDark: true,
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withAlpha(30),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Explorar como Conductor',
-                  style: TextStyle(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-                SizedBox(width: 6),
-                Icon(Icons.arrow_forward_rounded, size: 15, color: AppColors.secondary),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Focused Card: Parking Owner Mode
-  Widget _buildOwnerCard(BuildContext context) {
-    return AppCard(
-      key: const ValueKey('owner_card'),
-      variant: AppCardVariant.amber,
-      padding: const EdgeInsets.all(18),
-      onTap: () => context.push('/register'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.darkCard,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'P',
-                  style: TextStyle(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Monetiza tus Espacios',
-                      style: AppTypography.title.copyWith(
-                        color: AppColors.darkCard,
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Conecta con miles de conductores en Pasto',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.darkCard.withAlpha(180),
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _buildBenefitRow(
-            icon: Icons.trending_up_rounded,
-            title: 'Más clientes diarios',
-            subtitle: 'Conductores buscando cupo en Pasto en tiempo real.',
-            isDark: false,
-          ),
-          const SizedBox(height: 8),
-          _buildBenefitRow(
-            icon: Icons.two_wheeler_rounded,
-            title: 'Control de cupos',
-            subtitle: 'Administra autos y motos desde tu celular.',
-            isDark: false,
-          ),
-          const SizedBox(height: 8),
-          _buildBenefitRow(
-            icon: Icons.payments_outlined,
-            title: 'Sin intermediarios',
-            subtitle: 'Reportes claros de ocupación y cobros por estancia.',
-            isDark: false,
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            decoration: BoxDecoration(
-              color: AppColors.darkCard.withAlpha(16),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Registrar mi Parqueadero',
-                  style: TextStyle(
-                    color: AppColors.darkCard,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                SizedBox(width: 6),
-                Icon(Icons.arrow_forward_rounded, size: 15, color: AppColors.darkCard),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBenefitRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool isDark,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF333333) : const Color(0xFFF7BD69),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            size: 15,
-            color: isDark ? AppColors.secondary : AppColors.darkCard,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontFamily: AppTypography.fontFamily,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : AppColors.darkCard,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontFamily: AppTypography.fontFamily,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w400,
-                  color: isDark ? Colors.white70 : AppColors.darkCard.withAlpha(190),
-                  height: 1.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 3-step item with high-contrast highlighted title and crisp typography
-  Widget _buildStepItem({
-    required String stepNumber,
-    required String title,
-    required String description,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(6),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.darkCard,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(15),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              stepNumber,
-              style: const TextStyle(
-                fontFamily: AppTypography.fontFamily,
-                color: AppColors.secondary,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Highlighted, high-contrast title that stands out boldly against white card!
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: AppTypography.fontFamily,
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A), // Slate-900: High-contrast, bold, crisp on white!
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                // Crisp description
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontFamily: AppTypography.fontFamily,
-                    color: Color(0xFF475569), // Slate-600
-                    height: 1.35,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecommendationsSection() {
+  Widget _buildRecommendationsSection(bool isDark) {
     if (_isLoading) {
-      return const Row(
-        children: [
-          Expanded(child: AppCard(variant: AppCardVariant.dark, height: 160, child: SizedBox())),
-          SizedBox(width: 14),
-          Expanded(child: AppCard(variant: AppCardVariant.amber, height: 160, child: SizedBox())),
-        ],
+      return Shimmer.fromColors(
+        baseColor:
+            isDark ? DesignTokens.darkSurface : const Color(0xFFE4E4E7),
+        highlightColor:
+            isDark ? DesignTokens.darkSurfaceElevated : const Color(0xFFF4F4F5),
+        child: const Row(
+          children: [
+            Expanded(
+              child: AppCard(
+                variant: AppCardVariant.dark,
+                height: 160,
+                child: SizedBox(),
+              ),
+            ),
+            SizedBox(width: 14),
+            Expanded(
+              child: AppCard(
+                variant: AppCardVariant.amber,
+                height: 160,
+                child: SizedBox(),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -1375,20 +1564,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final lot2 = _parkingLots.length > 1 ? _parkingLots[1] : null;
 
     final name1 = lot1?['name'] as String? ?? 'Parqueadero Unicentro Plaza';
-    final price1 = lot1 != null ? '\$${lot1['price_per_hour']}/h' : '\$2.500/h';
+    final price1 =
+        lot1 != null ? '\$${lot1['price_per_hour']}/h' : '\$2.500/h';
     final id1 = lot1?['id'] as String? ?? 'pasto-unicentro-1';
     final spaces1 = lot1?['car_spaces'] ?? 24;
     final dist1 = lot1?['distance'] ?? 60;
 
     final name2 = lot2?['name'] as String? ?? 'Parqueadero Plaza Belalcázar';
-    final price2 = lot2 != null ? '\$${lot2['price_per_hour']}/h' : '\$2.500/h';
+    final price2 =
+        lot2 != null ? '\$${lot2['price_per_hour']}/h' : '\$2.500/h';
     final id2 = lot2?['id'] as String? ?? 'pasto-belalcazar-1';
     final spaces2 = lot2?['car_spaces'] ?? 18;
     final dist2 = lot2?['distance'] ?? 30;
 
     return Row(
       children: [
-        // Dark Card
         Expanded(
           child: AppCard(
             variant: AppCardVariant.dark,
@@ -1410,7 +1600,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       '$dist1 m',
                       style: AppTypography.caption.copyWith(
                         color: Colors.white60,
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -1456,8 +1646,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         const SizedBox(width: 14),
-
-        // Amber Card
         Expanded(
           child: AppCard(
             variant: AppCardVariant.amber,
@@ -1479,7 +1667,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       '$dist2 m',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.darkCard.withAlpha(160),
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -1525,254 +1713,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildExtendedFeatureItem({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFFFFEDD5),
-                width: 1,
-              ),
-            ),
-            child: Icon(icon, size: 16, color: const Color(0xFFC2410C)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: AppTypography.fontFamily,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontFamily: AppTypography.fontFamily,
-                    fontSize: 11.5,
-                    color: Color(0xFF475569),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLandingFooter(BuildContext context, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(top: 24, bottom: 20, left: 4, right: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Divider(
-            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-            thickness: 1,
-          ),
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.local_parking_rounded,
-                  color: AppColors.darkCard,
-                  size: 15,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Parking Pasto',
-                style: TextStyle(
-                  fontFamily: AppTypography.fontFamily,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                  color: isDark ? AppColors.white : const Color(0xFF0F172A),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Red inteligente de parqueaderos de San Juan de Pasto, Nariño.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: AppTypography.fontFamily,
-              fontSize: 12,
-              color: isDark ? Colors.white60 : const Color(0xFF64748B),
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _buildFooterTag(
-                icon: Icons.place_rounded,
-                text: 'Pasto, Colombia',
-                isDark: isDark,
-              ),
-              _buildFooterTag(
-                icon: Icons.speed_rounded,
-                text: 'Tiempo Real',
-                isDark: isDark,
-              ),
-              _buildFooterTag(
-                icon: Icons.security_rounded,
-                text: 'Acceso Seguro',
-                isDark: isDark,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 16,
-            runSpacing: 6,
-            children: [
-              _buildFooterLink('Términos del Servicio', () {}),
-              _buildFooterLink('Privacidad', () {}),
-              _buildFooterLink('Soporte', () {}),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '© 2026 Smart Parking Pasto. Todos los derechos reservados.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: AppTypography.fontFamily,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Movilidad ágil, transparente y segura.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: AppTypography.fontFamily,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w500,
-              color: isDark ? Colors.white30 : const Color(0xFFA0AEC0),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooterTag({
-    required IconData icon,
-    required String text,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withAlpha(10) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-          width: 0.8,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: isDark ? AppColors.secondary : const Color(0xFFB46500)),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              fontFamily: AppTypography.fontFamily,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white70 : const Color(0xFF475569),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooterLink(String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontFamily: AppTypography.fontFamily,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-            color: AppColors.secondary,
-            decoration: TextDecoration.underline,
-            decorationColor: AppColors.secondary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LocationPill extends StatelessWidget {
-  final String text;
-  const _LocationPill({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F7),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.darkCard,
-        ),
-      ),
     );
   }
 }

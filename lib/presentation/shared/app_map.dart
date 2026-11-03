@@ -6,12 +6,15 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/env_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/motion_utils.dart';
 import '../../data/datasources/pasto_landmarks_data.dart';
 import 'status_pill.dart';
 
 class AppMap extends StatefulWidget {
   final double? height;
   final bool showControls;
+  final LatLng? initialCenter;
+  final double? initialZoom;
   final Function(Landmark landmark)? onLandmarkSelected;
   final Function(PastoParkingLot lot)? onParkingLotSelected;
 
@@ -19,6 +22,8 @@ class AppMap extends StatefulWidget {
     super.key,
     this.height,
     this.showControls = true,
+    this.initialCenter,
+    this.initialZoom,
     this.onLandmarkSelected,
     this.onParkingLotSelected,
   });
@@ -45,15 +50,50 @@ class AppMap extends StatefulWidget {
   State<AppMap> createState() => _AppMapState();
 }
 
-class _AppMapState extends State<AppMap> {
+class _AppMapState extends State<AppMap> with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   late LatLng _currentCenter;
+  late double _currentZoom;
   String _activeFilter = 'all'; // 'all', 'malls', 'hospitals', 'parking'
+  late final AnimationController _pinPulseController;
 
   @override
   void initState() {
     super.initState();
-    _currentCenter = LatLng(EnvConfig.mapDefaultLat, EnvConfig.mapDefaultLng);
+    _currentCenter = widget.initialCenter ??
+        LatLng(EnvConfig.mapDefaultLat, EnvConfig.mapDefaultLng);
+    _currentZoom = widget.initialZoom ?? EnvConfig.mapDefaultZoom;
+
+    _pinPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    final isTesting =
+        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (!isTesting) {
+      _pinPulseController.repeat(reverse: true);
+    } else {
+      _pinPulseController.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AppMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCenter != null &&
+        widget.initialCenter != oldWidget.initialCenter) {
+      _currentCenter = widget.initialCenter!;
+      _currentZoom = widget.initialZoom ?? 16.0;
+      try {
+        _mapController.move(_currentCenter, _currentZoom);
+      } catch (_) {}
+    }
+  }
+
+  @override
+  void dispose() {
+    _pinPulseController.dispose();
+    super.dispose();
   }
 
   Future<void> _requestLocation() async {
@@ -177,6 +217,7 @@ class _AppMapState extends State<AppMap> {
             height: 48,
             child: GestureDetector(
               onTap: () {
+                MotionUtils.triggerHaptic(HapticType.selectionClick);
                 _mapController.move(LatLng(lot.latitude, lot.longitude), 16.5);
                 if (widget.onParkingLotSelected != null) {
                   widget.onParkingLotSelected!(lot);
@@ -184,55 +225,65 @@ class _AppMapState extends State<AppMap> {
                   AppMap.showParkingDetails(context, lot);
                 }
               },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.darkCard,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.secondary, width: 1.5),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x40000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'P',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            '\$${(lot.pricePerHour / 1000).toStringAsFixed(1)}k',
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
+              child: AnimatedBuilder(
+                animation: _pinPulseController,
+                builder: (context, child) {
+                  final reduce = MotionUtils.reduceMotion(context);
+                  final scale = reduce
+                      ? 1.0
+                      : (0.97 + 0.05 * _pinPulseController.value);
+                  return Transform.scale(scale: scale, child: child);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.darkCard,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.secondary, width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x40000000),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
                           ),
                         ],
                       ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'P',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '\$${(lot.pricePerHour / 1000).toStringAsFixed(1)}k',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  Container(
-                    width: 3,
-                    height: 4,
-                    color: AppColors.darkCard,
-                  ),
-                ],
+                    Container(
+                      width: 3,
+                      height: 4,
+                      color: AppColors.darkCard,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -251,7 +302,7 @@ class _AppMapState extends State<AppMap> {
           mapController: _mapController,
           options: MapOptions(
             initialCenter: _currentCenter,
-            initialZoom: EnvConfig.mapDefaultZoom,
+            initialZoom: _currentZoom,
             minZoom: 12.0,
             maxZoom: 18.0,
           ),

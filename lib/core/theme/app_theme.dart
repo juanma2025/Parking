@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
+import 'design_tokens.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
-    final colorScheme = ColorScheme(
+    const colorScheme = ColorScheme(
       brightness: Brightness.light,
       primary: AppColors.primary,
       onPrimary: AppColors.darkCard,
@@ -12,8 +13,10 @@ class AppTheme {
       onSecondary: AppColors.darkCard,
       error: AppColors.error,
       onError: AppColors.white,
-      surface: AppColors.white,
-      onSurface: AppColors.darkCard,
+      surface: DesignTokens.lightSurface,
+      onSurface: DesignTokens.lightOnSurface,
+      onSurfaceVariant: DesignTokens.lightOnSurfaceVariant,
+      outline: DesignTokens.lightOutline,
     );
 
     return ThemeData(
@@ -22,8 +25,8 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.lightBackground,
       colorScheme: colorScheme,
       textTheme: AppTypography.textTheme(
-        AppColors.textPrimaryLight,
-        AppColors.textSecondaryLight,
+        DesignTokens.lightOnSurface,
+        DesignTokens.lightOnSurfaceVariant,
       ),
       cardTheme: CardThemeData(
         color: AppColors.white,
@@ -72,7 +75,7 @@ class AppTheme {
   }
 
   static ThemeData get darkTheme {
-    final colorScheme = ColorScheme(
+    const colorScheme = ColorScheme(
       brightness: Brightness.dark,
       primary: AppColors.darkAccent,
       onPrimary: AppColors.darkCard,
@@ -80,18 +83,20 @@ class AppTheme {
       onSecondary: AppColors.darkCard,
       error: AppColors.error,
       onError: AppColors.white,
-      surface: AppColors.darkSurface,
-      onSurface: AppColors.darkText,
+      surface: DesignTokens.darkSurface,
+      onSurface: DesignTokens.darkOnSurface,
+      onSurfaceVariant: DesignTokens.darkOnSurfaceVariant,
+      outline: DesignTokens.darkOutline,
     );
 
     return ThemeData(
       useMaterial3: true,
       fontFamily: AppTypography.fontFamily,
-      scaffoldBackgroundColor: AppColors.darkBackground,
+      scaffoldBackgroundColor: DesignTokens.darkBackground,
       colorScheme: colorScheme,
       textTheme: AppTypography.textTheme(
-        AppColors.darkText,
-        AppColors.darkSecondaryText,
+        DesignTokens.darkOnSurface,
+        DesignTokens.darkOnSurfaceVariant,
       ),
       cardTheme: CardThemeData(
         color: AppColors.darkSurface,
