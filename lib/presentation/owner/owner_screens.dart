@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/theme/theme_provider.dart';
 import '../../core/utils/motion_utils.dart';
 import '../payments/payments_provider.dart';
+import '../profile/user_profile_provider.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
 import '../shared/avatar_button.dart';
@@ -18,8 +20,11 @@ import '../shared/wavy_area_chart.dart';
 import 'calendar_provider.dart';
 import 'spaces_provider.dart';
 
-Widget _buildOwnerHeader(BuildContext context, String title) {
+Widget _buildOwnerHeader(BuildContext context, WidgetRef ref, String title) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
+  final themeMode = ref.watch(themeModeProvider);
+  final userProfile = ref.watch(userProfileProvider);
+
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
@@ -44,15 +49,58 @@ Widget _buildOwnerHeader(BuildContext context, String title) {
           ),
         ),
       ),
-      Text(
-        title,
-        style: AppTypography.title.copyWith(
-          fontSize: 18,
-          color: isDark ? AppColors.white : AppColors.darkCard,
+      Flexible(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.title.copyWith(
+              fontSize: 18,
+              color: isDark ? AppColors.white : AppColors.darkCard,
+            ),
+          ),
         ),
       ),
-      AvatarButton(
-        onTap: () => context.go('/profile'),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : AppColors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(isDark ? 30 : 8),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: IconButton(
+              key: const Key('owner_theme_toggle_button'),
+              tooltip: themeMode == ThemeMode.system
+                  ? 'Tema: Adaptado al dispositivo'
+                  : (themeMode == ThemeMode.dark ? 'Tema: Oscuro' : 'Tema: Claro'),
+              icon: Icon(
+                themeMode == ThemeMode.system
+                    ? Icons.brightness_auto_rounded
+                    : (themeMode == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
+                color: AppColors.secondary,
+                size: 20,
+              ),
+              onPressed: () => ref.read(themeModeProvider.notifier).toggleTheme(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          AvatarButton(
+            avatarUrl: userProfile.avatarUrl,
+            onTap: () => context.go('/profile'),
+          ),
+        ],
       ),
     ],
   );
@@ -64,6 +112,11 @@ Widget _buildOwnerHeader(BuildContext context, String title) {
 class OwnerSummaryScreen extends ConsumerWidget {
   const OwnerSummaryScreen({super.key});
 
+  static String _formatCop(double amount) {
+    final intVal = amount.toInt();
+    return '\$${intVal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} COP';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final occupancyPercent = ref.watch(occupancyPercentageProvider);
@@ -73,10 +126,29 @@ class OwnerSummaryScreen extends ConsumerWidget {
     final transferRevenue = ref.watch(transferRevenueTodayProvider);
     final availableCount = ref.watch(availableSpacesCountProvider);
     final occupiedCount = ref.watch(occupiedSpacesCountProvider);
+    final spaces = ref.watch(parkingSpacesProvider);
+    final parkingConfig = ref.watch(ownerParkingConfigProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Format revenue for KPI (e.g. 185K)
-    final revenueInThousands = (totalRevenue / 1000).round();
+    // Ingresos reales: inicia en $0 para cuentas nuevas y escala a $XK cuando supera $1.000
+    final bool hasRevenue = totalRevenue >= 1000;
+    final int kpiRevenueValue = hasRevenue
+        ? (totalRevenue / 1000).round()
+        : totalRevenue.toInt();
+    final String kpiRevenueSuffix = hasRevenue ? 'K' : '';
+
+    final String weeklySubtitle = _formatCop(totalRevenue);
+    final List<double> weeklyChartValues = totalRevenue <= 0
+        ? const [0, 0, 0, 0, 0, 0, 0]
+        : [
+            0,
+            0,
+            0,
+            0,
+            0,
+            (totalRevenue / 2500).clamp(10.0, 60.0),
+            (totalRevenue / 1200).clamp(25.0, 95.0),
+          ];
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -87,7 +159,7 @@ class OwnerSummaryScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MotionUtils.staggerEntrance(
-                _buildOwnerHeader(context, 'Panel de Anfitrión'),
+                _buildOwnerHeader(context, ref, 'Panel de Anfitrión'),
                 index: 0,
               ),
               const SizedBox(height: 20),
@@ -118,6 +190,7 @@ class OwnerSummaryScreen extends ConsumerWidget {
                         icon: const Icon(Icons.pie_chart_outline_rounded, color: AppColors.white),
                         onTap: () => _showOccupancyBreakdownModal(
                           context,
+                          garageName: parkingConfig.name,
                           occupiedCount: occupiedCount,
                           availableCount: availableCount,
                           occupancyPercent: occupancyPercent,
@@ -129,9 +202,9 @@ class OwnerSummaryScreen extends ConsumerWidget {
                     Expanded(
                       child: KpiCard(
                         label: 'INGRESOS HOY',
-                        value: revenueInThousands,
+                        value: kpiRevenueValue,
                         prefix: '\$',
-                        suffix: 'K',
+                        suffix: kpiRevenueSuffix,
                         variant: AppCardVariant.amber,
                         icon: const Icon(Icons.payments_outlined, color: AppColors.darkCard),
                         onTap: () => _showRevenueBreakdownModal(
@@ -150,14 +223,19 @@ class OwnerSummaryScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 18),
 
-              // Wavy Chart Card with Interactive onTap
+              // Wavy Chart Card with Interactive onTap (calculado únicamente con reservas/pagos reales)
               MotionUtils.staggerEntrance(
                 WavyAreaChart(
                   title: 'INGRESOS SEMANALES',
-                  subtitle: '\$1.240.000 COP',
-                  values: const [20, 45, 30, 65, 50, 85, 95],
+                  subtitle: weeklySubtitle,
+                  values: weeklyChartValues,
                   height: 180,
-                  onTap: () => _showWeeklyChartModal(context, isDark: isDark),
+                  onTap: () => _showWeeklyChartModal(
+                    context,
+                    totalRevenue: totalRevenue,
+                    weeklyValues: weeklyChartValues,
+                    isDark: isDark,
+                  ),
                 ),
                 index: 3,
               ),
@@ -168,7 +246,12 @@ class OwnerSummaryScreen extends ConsumerWidget {
                 AppCard(
                   variant: AppCardVariant.white,
                   padding: const EdgeInsets.all(18),
-                  onTap: () => _showGarageDetailsModal(context, isDark: isDark),
+                  onTap: () => _showGarageDetailsModal(
+                    context,
+                    config: parkingConfig,
+                    totalSpacesCount: spaces.length,
+                    isDark: isDark,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -186,12 +269,17 @@ class OwnerSummaryScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Parqueadero Pasaje Nova Centro',
-                              style: AppTypography.title.copyWith(fontSize: 16),
+                              parkingConfig.name,
+                              style: AppTypography.title.copyWith(
+                                fontSize: 16,
+                                color: isDark ? AppColors.white : AppColors.darkCard,
+                              ),
                             ),
                             Text(
-                              '38 cupos totales • Calle 19 # 25-22, Pasto',
-                              style: AppTypography.caption.copyWith(color: AppColors.textSecondaryLight),
+                              '${spaces.length} cupos totales • ${parkingConfig.address}',
+                              style: AppTypography.caption.copyWith(
+                                color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                              ),
                             ),
                           ],
                         ),
@@ -212,6 +300,7 @@ class OwnerSummaryScreen extends ConsumerWidget {
 
   void _showOccupancyBreakdownModal(
     BuildContext context, {
+    required String garageName,
     required int occupiedCount,
     required int availableCount,
     required int occupancyPercent,
@@ -219,92 +308,105 @@ class OwnerSummaryScreen extends ConsumerWidget {
   }) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(ctx).padding.bottom + 24,
+        ),
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            const TwoToneTitle(text: 'Estado de ', highlightText: 'bahías'),
-            const SizedBox(height: 8),
-            Text(
-              'Ocupación actual del $occupancyPercent% en el garaje Pasaje Nova Centro.',
-              style: AppTypography.body.copyWith(
-                color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.secondary, width: 1.5),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('CUPOS LIBRES', style: AppTypography.sectionLabel.copyWith(color: AppColors.secondary)),
-                        const SizedBox(height: 4),
-                        Text('$availableCount', style: AppTypography.display.copyWith(fontSize: 26, color: isDark ? Colors.white : AppColors.darkCard)),
-                        Text('Disponibles ahora', style: AppTypography.caption.copyWith(color: isDark ? Colors.white60 : AppColors.textSecondaryLight)),
-                      ],
-                    ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: isDark ? Colors.white24 : const Color(0xFFE2E8F0)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('CUPOS OCUPADOS', style: AppTypography.sectionLabel.copyWith(color: const Color(0xFFE65100))),
-                        const SizedBox(height: 4),
-                        Text('$occupiedCount', style: AppTypography.display.copyWith(fontSize: 26, color: isDark ? Colors.white : AppColors.darkCard)),
-                        Text('Vehículos en bahía', style: AppTypography.caption.copyWith(color: isDark ? Colors.white60 : AppColors.textSecondaryLight)),
-                      ],
+              ),
+              const SizedBox(height: 18),
+              TwoToneTitle(
+                text: 'Estado de ',
+                highlightText: 'bahías',
+                normalColor: isDark ? AppColors.white : AppColors.darkCard,
+                highlightColor: AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Ocupación actual del $occupancyPercent% en $garageName.',
+                style: AppTypography.body.copyWith(
+                  color: isDark ? Colors.white.withAlpha(220) : AppColors.darkCard,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.secondary, width: 1.5),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('CUPOS LIBRES', style: AppTypography.sectionLabel.copyWith(color: AppColors.secondary)),
+                          const SizedBox(height: 4),
+                          Text('$availableCount', style: AppTypography.display.copyWith(fontSize: 26, color: isDark ? Colors.white : AppColors.darkCard)),
+                          Text('Disponibles ahora', style: AppTypography.caption.copyWith(color: isDark ? Colors.white70 : AppColors.textSecondaryLight)),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 22),
-            PillButton(
-              text: 'Gestionar bahías y cupos',
-              variant: PillButtonVariant.primary,
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.go('/owner-spaces');
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isDark ? Colors.white24 : const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('CUPOS OCUPADOS', style: AppTypography.sectionLabel.copyWith(color: const Color(0xFFE65100))),
+                          const SizedBox(height: 4),
+                          Text('$occupiedCount', style: AppTypography.display.copyWith(fontSize: 26, color: isDark ? Colors.white : AppColors.darkCard)),
+                          Text('Vehículos en bahía', style: AppTypography.caption.copyWith(color: isDark ? Colors.white70 : AppColors.textSecondaryLight)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              PillButton(
+                text: 'Gestionar bahías y cupos',
+                variant: PillButtonVariant.primary,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.go('/owner-spaces');
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -320,70 +422,83 @@ class OwnerSummaryScreen extends ConsumerWidget {
   }) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(ctx).padding.bottom + 24,
+        ),
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
-            const TwoToneTitle(text: 'Arqueo de ', highlightText: 'hoy'),
-            const SizedBox(height: 8),
-            Text(
-              'Total recaudado: \$${totalRevenue.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} COP',
-              style: AppTypography.title.copyWith(fontSize: 16, color: AppColors.secondary),
-            ),
-            const SizedBox(height: 18),
-            _buildBreakdownItem(
-              icon: Icons.payments_rounded,
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Efectivo en Caja',
-              amount: cashRevenue,
-              isDark: isDark,
-            ),
-            const Divider(height: 20),
-            _buildBreakdownItem(
-              icon: Icons.qr_code_2_rounded,
-              iconColor: const Color(0xFF7B1FA2),
-              title: 'Nequi Directo',
-              amount: nequiRevenue,
-              isDark: isDark,
-            ),
-            const Divider(height: 20),
-            _buildBreakdownItem(
-              icon: Icons.account_balance_rounded,
-              iconColor: const Color(0xFF0288D1),
-              title: 'Transferencias (Bancolombia/Daviplata)',
-              amount: transferRevenue,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 24),
-            PillButton(
-              text: 'Registrar nuevo pago en taquilla',
-              variant: PillButtonVariant.primary,
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.go('/payments');
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 18),
+              TwoToneTitle(
+                text: 'Arqueo de ',
+                highlightText: 'hoy',
+                normalColor: isDark ? AppColors.white : AppColors.darkCard,
+                highlightColor: AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Total recaudado: ${_formatCop(totalRevenue)}',
+                style: AppTypography.title.copyWith(fontSize: 16, color: AppColors.secondary),
+              ),
+              const SizedBox(height: 18),
+              _buildBreakdownItem(
+                icon: Icons.payments_rounded,
+                iconColor: const Color(0xFF2E7D32),
+                title: 'Efectivo en Caja',
+                amount: cashRevenue,
+                isDark: isDark,
+              ),
+              const Divider(height: 20),
+              _buildBreakdownItem(
+                icon: Icons.qr_code_2_rounded,
+                iconColor: const Color(0xFF7B1FA2),
+                title: 'Nequi Directo',
+                amount: nequiRevenue,
+                isDark: isDark,
+              ),
+              const Divider(height: 20),
+              _buildBreakdownItem(
+                icon: Icons.account_balance_rounded,
+                iconColor: const Color(0xFF0288D1),
+                title: 'Transferencias (Bancolombia/Daviplata)',
+                amount: transferRevenue,
+                isDark: isDark,
+              ),
+              const SizedBox(height: 24),
+              PillButton(
+                text: 'Registrar nuevo pago en taquilla',
+                variant: PillButtonVariant.primary,
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.go('/payments');
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -396,7 +511,7 @@ class OwnerSummaryScreen extends ConsumerWidget {
     required double amount,
     required bool isDark,
   }) {
-    final formatted = '\$${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} COP';
+    final formatted = _formatCop(amount);
     return Row(
       children: [
         Container(
@@ -429,166 +544,210 @@ class OwnerSummaryScreen extends ConsumerWidget {
     );
   }
 
-  void _showWeeklyChartModal(BuildContext context, {required bool isDark}) {
+  void _showWeeklyChartModal(
+    BuildContext context, {
+    required double totalRevenue,
+    required List<double> weeklyValues,
+    required bool isDark,
+  }) {
+    final formattedTotal = _formatCop(totalRevenue);
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(ctx).padding.bottom + 24,
+        ),
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
-            const TwoToneTitle(text: 'Rendimiento ', highlightText: 'semanal'),
-            const SizedBox(height: 6),
-            Text(
-              'Total de la semana: \$1.240.000 COP (+18% vs semana anterior)',
-              style: AppTypography.body.copyWith(
-                color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+              const SizedBox(height: 18),
+              TwoToneTitle(
+                text: 'Rendimiento ',
+                highlightText: 'semanal',
+                normalColor: isDark ? AppColors.white : AppColors.darkCard,
+                highlightColor: AppColors.primary,
               ),
-            ),
-            const SizedBox(height: 18),
-            const WavyAreaChart(
-              title: 'TENDENCIA DE FACTURACIÓN',
-              subtitle: '7 DÍAS',
-              values: [20, 45, 30, 65, 50, 85, 95],
-              height: 140,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(14),
+              const SizedBox(height: 6),
+              Text(
+                totalRevenue > 0
+                    ? 'Total acumulado de la semana: $formattedTotal'
+                    : 'Total de la semana: \$0 COP (Sin ingresos registrados aún)',
+                style: AppTypography.body.copyWith(
+                  color: isDark ? Colors.white.withAlpha(220) : AppColors.darkCard,
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Día de mayor afluencia:', style: AppTypography.caption.copyWith(color: isDark ? Colors.white70 : AppColors.textSecondaryLight)),
-                  Text('Viernes (\$260.000 COP)', style: AppTypography.bodyBold.copyWith(color: AppColors.secondary)),
-                ],
+              const SizedBox(height: 18),
+              WavyAreaChart(
+                title: 'TENDENCIA DE FACTURACIÓN',
+                subtitle: formattedTotal,
+                values: weeklyValues,
+                height: 140,
               ),
-            ),
-            const SizedBox(height: 20),
-            PillButton(
-              text: 'Cerrar detalle',
-              variant: PillButtonVariant.dark,
-              onPressed: () => Navigator.pop(ctx),
-            ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Recaudo registrado hoy:',
+                      style: AppTypography.caption.copyWith(
+                        color: isDark ? Colors.white70 : AppColors.darkCard,
+                      ),
+                    ),
+                    Text(
+                      formattedTotal,
+                      style: AppTypography.bodyBold.copyWith(color: AppColors.secondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              PillButton(
+                text: 'Cerrar detalle',
+                variant: PillButtonVariant.dark,
+                onPressed: () => Navigator.pop(ctx),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _showGarageDetailsModal(BuildContext context, {required bool isDark}) {
+  void _showGarageDetailsModal(
+    BuildContext context, {
+    required OwnerParkingConfig config,
+    required int totalSpacesCount,
+    required bool isDark,
+  }) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(ctx).padding.bottom + 24,
+        ),
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.local_parking_rounded, color: AppColors.darkCard, size: 26),
                   ),
-                  child: const Icon(Icons.local_parking_rounded, color: AppColors.darkCard, size: 26),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Parqueadero Pasaje Nova Centro',
-                        style: AppTypography.title.copyWith(fontSize: 17, color: isDark ? Colors.white : AppColors.darkCard),
-                      ),
-                      Text(
-                        'Calle 19 # 25-22, Pasto, Nariño',
-                        style: AppTypography.caption.copyWith(color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
-                      ),
-                    ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          config.name,
+                          style: AppTypography.title.copyWith(fontSize: 17, color: isDark ? Colors.white : AppColors.darkCard),
+                        ),
+                        Text(
+                          '${config.address}, San Juan de Pasto',
+                          style: AppTypography.caption.copyWith(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _buildGarageInfoRow(icon: Icons.access_time_rounded, label: 'Horario', value: '06:00 AM - 10:00 PM (Lun a Sáb)', isDark: isDark),
-            const SizedBox(height: 10),
-            _buildGarageInfoRow(icon: Icons.directions_car_rounded, label: 'Tarifa Carros', value: '\$2.800 COP / hora', isDark: isDark),
-            const SizedBox(height: 10),
-            _buildGarageInfoRow(icon: Icons.two_wheeler_rounded, label: 'Tarifa Motos', value: '\$1.400 COP / hora', isDark: isDark),
-            const SizedBox(height: 10),
-            _buildGarageInfoRow(icon: Icons.verified_user_outlined, label: 'Seguridad', value: 'Cámaras 24/7 y póliza todo riesgo', isDark: isDark),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: PillButton(
-                    text: 'Ver en Mapa',
-                    variant: PillButtonVariant.dark,
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      context.go('/home');
-                    },
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildGarageInfoRow(icon: Icons.access_time_rounded, label: 'Horario', value: config.openingHours, isDark: isDark),
+              const SizedBox(height: 10),
+              _buildGarageInfoRow(icon: Icons.grid_view_rounded, label: 'Capacidad Total', value: '$totalSpacesCount cupos (${config.carSpaces} carros • ${config.motoSpaces} motos)', isDark: isDark),
+              const SizedBox(height: 10),
+              _buildGarageInfoRow(icon: Icons.directions_car_rounded, label: 'Tarifa Carros', value: '${_formatCop(config.carHourlyRate)} / hora', isDark: isDark),
+              const SizedBox(height: 10),
+              _buildGarageInfoRow(icon: Icons.two_wheeler_rounded, label: 'Tarifa Motos', value: '${_formatCop(config.motoHourlyRate)} / hora', isDark: isDark),
+              const SizedBox(height: 10),
+              _buildGarageInfoRow(icon: Icons.verified_user_outlined, label: 'Seguridad', value: 'Cámaras 24/7 y póliza todo riesgo', isDark: isDark),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: PillButton(
+                      text: 'Ver en Mapa',
+                      variant: PillButtonVariant.dark,
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        context.go('/home');
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: PillButton(
-                    text: 'Cupos en vivo',
-                    variant: PillButtonVariant.primary,
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      context.go('/owner-spaces');
-                    },
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: PillButton(
+                      text: 'Cupos en vivo',
+                      variant: PillButtonVariant.primary,
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        context.go('/owner-spaces');
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -651,7 +810,7 @@ class _OwnerSpacesScreenState extends ConsumerState<OwnerSpacesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MotionUtils.staggerEntrance(
-                _buildOwnerHeader(context, 'Espacios y Cupos'),
+                _buildOwnerHeader(context, ref, 'Espacios y Cupos'),
                 index: 0,
               ),
               const SizedBox(height: 20),
@@ -678,14 +837,17 @@ class _OwnerSpacesScreenState extends ConsumerState<OwnerSpacesScreen> {
 
               // Filter Chips + Quick Stats
               MotionUtils.staggerEntrance(
-                Row(
-                  children: [
-                    _buildFilterChip('TODOS (${spaces.length})', 'TODOS', isDark),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('LIBRES ($availableCount)', 'LIBRES', isDark),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('OCUPADOS ($occupiedCount)', 'OCUPADOS', isDark),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('TODOS (${spaces.length})', 'TODOS', isDark),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('LIBRES ($availableCount)', 'LIBRES', isDark),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('OCUPADOS ($occupiedCount)', 'OCUPADOS', isDark),
+                    ],
+                  ),
                 ),
                 index: 2,
               ),
@@ -760,124 +922,21 @@ class _OwnerSpacesScreenState extends ConsumerState<OwnerSpacesScreen> {
   void _showOccupiedSpaceModal(BuildContext context, OwnerSpaceItem space, bool isDark) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(ctx).padding.bottom + 24,
+        ),
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkCard : AppColors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TwoToneTitle(text: 'Cupo ', highlightText: space.spaceNumber),
-                const StatusPill(
-                  text: 'OCUPADO',
-                  backgroundColor: Color(0xFFE65100),
-                  textColor: Colors.white,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Vehicle & Stay Details Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                children: [
-                  _buildDetailRow('Vehículo / Placa:', space.plate ?? 'ABC-123', isDark),
-                  const Divider(height: 16),
-                  _buildDetailRow('Tipo:', space.vehicleType, isDark),
-                  const Divider(height: 16),
-                  _buildDetailRow('Conductor:', space.driverName ?? 'Conductor asignado', isDark),
-                  const Divider(height: 16),
-                  _buildDetailRow('Hora de Ingreso:', space.entryTime ?? '10:30 AM', isDark),
-                  const Divider(height: 16),
-                  _buildDetailRow('Tarifa por Hora:', '\$${space.hourlyRate.toInt()} COP', isDark),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Primary Action: Habilitar / Liberar Espacio
-            PillButton(
-              text: '✓ Habilitar espacio (Marcar como LIBRE)',
-              variant: PillButtonVariant.primary,
-              onPressed: () {
-                ref.read(parkingSpacesProvider.notifier).freeSpace(space.spaceNumber);
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('✓ Cupo ${space.spaceNumber} habilitado como LIBRE. Registro actualizado.'),
-                    backgroundColor: const Color(0xFF2E7D32),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Secondary Action: Cobrar en Taquilla y Liberar
-            PillButton(
-              text: 'Cobrar en taquilla y liberar bahía',
-              variant: PillButtonVariant.dark,
-              onPressed: () {
-                ref.read(parkingSpacesProvider.notifier).freeSpace(space.spaceNumber);
-                Navigator.pop(ctx);
-                context.go('/payments');
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Modal para ocupar manualmente un espacio disponible
-  void _showAvailableSpaceModal(BuildContext context, OwnerSpaceItem space, bool isDark) {
-    final plateCtrl = TextEditingController();
-    final driverCtrl = TextEditingController();
-    String vehicleType = 'Sedán';
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCard : AppColors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -887,7 +946,7 @@ class _OwnerSpacesScreenState extends ConsumerState<OwnerSpacesScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -897,99 +956,230 @@ class _OwnerSpacesScreenState extends ConsumerState<OwnerSpacesScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TwoToneTitle(text: 'Cupo ', highlightText: space.spaceNumber),
+                  TwoToneTitle(
+                    text: 'Cupo ',
+                    highlightText: space.spaceNumber,
+                    normalColor: isDark ? AppColors.white : AppColors.darkCard,
+                    highlightColor: AppColors.primary,
+                  ),
                   const StatusPill(
-                    text: 'LIBRE',
-                    backgroundColor: AppColors.secondary,
-                    textColor: AppColors.darkCard,
+                    text: 'OCUPADO',
+                    backgroundColor: Color(0xFFE65100),
+                    textColor: Colors.white,
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Este espacio está disponible. Puedes asignar un vehículo que ingrese al garaje.',
-                style: AppTypography.caption.copyWith(
-                  color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              TextField(
-                controller: plateCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  labelText: 'Placa del vehículo (ej: ABC-123)',
-                  filled: true,
-                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  prefixIcon: const Icon(Icons.pin_rounded, color: AppColors.secondary),
+              // Vehicle & Stay Details Card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: driverCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Nombre del conductor (opcional)',
-                  filled: true,
-                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.secondary),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              DropdownButtonFormField<String>(
-                initialValue: vehicleType,
-                items: const [
-                  DropdownMenuItem(value: 'Sedán', child: Text('Carro / Sedán')),
-                  DropdownMenuItem(value: 'Camioneta', child: Text('Camioneta / SUV')),
-                  DropdownMenuItem(value: 'Moto', child: Text('Motocicleta')),
-                ],
-                onChanged: (val) {
-                  if (val != null) setModalState(() => vehicleType = val);
-                },
-                decoration: InputDecoration(
-                  labelText: 'Tipo de Vehículo',
-                  filled: true,
-                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  prefixIcon: const Icon(Icons.directions_car_rounded, color: AppColors.secondary),
+                child: Column(
+                  children: [
+                    _buildDetailRow('Vehículo / Placa:', space.plate ?? 'ABC-123', isDark),
+                    const Divider(height: 16),
+                    _buildDetailRow('Tipo:', space.vehicleType, isDark),
+                    const Divider(height: 16),
+                    _buildDetailRow('Conductor:', space.driverName ?? 'Conductor asignado', isDark),
+                    const Divider(height: 16),
+                    _buildDetailRow('Hora de Ingreso:', space.entryTime ?? '10:30 AM', isDark),
+                    const Divider(height: 16),
+                    _buildDetailRow('Tarifa por Hora:', '\$${space.hourlyRate.toInt()} COP', isDark),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
 
+              // Primary Action: Habilitar / Liberar Espacio
               PillButton(
-                text: 'Asignar y Ocupar Espacio',
+                text: '✓ Habilitar espacio (Marcar como LIBRE)',
                 variant: PillButtonVariant.primary,
                 onPressed: () {
-                  final plate = plateCtrl.text.trim();
-                  if (plate.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Por favor ingresa la placa del vehículo')),
-                    );
-                    return;
-                  }
-
-                  ref.read(parkingSpacesProvider.notifier).occupySpace(
-                        space.spaceNumber,
-                        plate: plate,
-                        vehicleType: vehicleType,
-                        driverName: driverCtrl.text.trim().isNotEmpty ? driverCtrl.text.trim() : null,
-                      );
-
+                  ref.read(parkingSpacesProvider.notifier).freeSpace(space.spaceNumber);
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('✓ Cupo ${space.spaceNumber} asignado al vehículo $plate.'),
+                      content: Text('✓ Cupo ${space.spaceNumber} habilitado como LIBRE. Registro actualizado.'),
                       backgroundColor: const Color(0xFF2E7D32),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
                 },
               ),
+              const SizedBox(height: 10),
+
+              // Secondary Action: Cobrar en Taquilla y Liberar
+              PillButton(
+                text: 'Cobrar en taquilla y liberar bahía',
+                variant: PillButtonVariant.dark,
+                onPressed: () {
+                  ref.read(parkingSpacesProvider.notifier).freeSpace(space.spaceNumber);
+                  Navigator.pop(ctx);
+                  context.go('/payments');
+                },
+              ),
               const SizedBox(height: 8),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Modal para ocupar manualmente un espacio disponible
+  void _showAvailableSpaceModal(BuildContext context, OwnerSpaceItem space, bool isDark) {
+    final plateCtrl = TextEditingController();
+    final driverCtrl = TextEditingController();
+    String vehicleType = space.vehicleType.toLowerCase().contains('moto') ? 'Moto' : 'Sedán';
+
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalContext, setModalState) => Container(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 20,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom + MediaQuery.of(modalContext).padding.bottom + 24,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : AppColors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TwoToneTitle(
+                      text: 'Cupo ',
+                      highlightText: space.spaceNumber,
+                      normalColor: isDark ? AppColors.white : AppColors.darkCard,
+                      highlightColor: AppColors.primary,
+                    ),
+                    const StatusPill(
+                      text: 'LIBRE',
+                      backgroundColor: AppColors.secondary,
+                      textColor: AppColors.darkCard,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Este espacio está disponible. Puedes asignar un vehículo que ingrese al garaje.',
+                  style: AppTypography.caption.copyWith(
+                    color: isDark ? Colors.white.withAlpha(220) : AppColors.darkCard,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: plateCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard),
+                  decoration: InputDecoration(
+                    labelText: 'Placa del vehículo (ej: ABC-123)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                    filled: true,
+                    fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.pin_rounded, color: AppColors.secondary),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: driverCtrl,
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard),
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del conductor (opcional)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                    filled: true,
+                    fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.secondary),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                DropdownButtonFormField<String>(
+                  initialValue: vehicleType,
+                  dropdownColor: isDark ? AppColors.darkSurface : AppColors.white,
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard, fontSize: 14),
+                  items: const [
+                    DropdownMenuItem(value: 'Sedán', child: Text('Carro / Sedán')),
+                    DropdownMenuItem(value: 'Camioneta', child: Text('Camioneta / SUV')),
+                    DropdownMenuItem(value: 'Moto', child: Text('Motocicleta')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setModalState(() => vehicleType = val);
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Tipo de Vehículo',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                    filled: true,
+                    fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.directions_car_rounded, color: AppColors.secondary),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                PillButton(
+                  text: 'Asignar y Ocupar Espacio',
+                  variant: PillButtonVariant.primary,
+                  onPressed: () {
+                    final plate = plateCtrl.text.trim();
+                    if (plate.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Por favor ingresa la placa del vehículo')),
+                      );
+                      return;
+                    }
+
+                    ref.read(parkingSpacesProvider.notifier).occupySpace(
+                          space.spaceNumber,
+                          plate: plate,
+                          vehicleType: vehicleType,
+                          driverName: driverCtrl.text.trim().isNotEmpty ? driverCtrl.text.trim() : null,
+                        );
+
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✓ Cupo ${space.spaceNumber} asignado al vehículo $plate.'),
+                        backgroundColor: const Color(0xFF2E7D32),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
@@ -1042,7 +1232,7 @@ class _OwnerReservationsScreenState extends ConsumerState<OwnerReservationsScree
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MotionUtils.staggerEntrance(
-                _buildOwnerHeader(context, 'Agenda y Calendario'),
+                _buildOwnerHeader(context, ref, 'Agenda y Calendario'),
                 index: 0,
               ),
               const SizedBox(height: 20),
@@ -1208,7 +1398,7 @@ class _OwnerReservationsScreenState extends ConsumerState<OwnerReservationsScree
                         text: 'Escanear',
                         width: 96,
                         variant: PillButtonVariant.dark,
-                        onPressed: () => _showScanQrDialog(context),
+                        onPressed: () => _showScanQrDialog(context, isDark),
                       ),
                     ],
                   ),
@@ -1217,16 +1407,58 @@ class _OwnerReservationsScreenState extends ConsumerState<OwnerReservationsScree
               ),
               const SizedBox(height: 16),
 
-              // List of Reservations Cards
+              // List of Real Reservations or Empty State
               if (filteredItems.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Text(
-                      'No hay reservas para el filtro seleccionado',
-                      style: AppTypography.body.copyWith(color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                MotionUtils.staggerEntrance(
+                  AppCard(
+                    variant: isDark ? AppCardVariant.dark : AppCardVariant.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 32),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withAlpha(isDark ? 60 : 45),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.event_available_rounded,
+                              size: 32,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Aún no tienes reservas',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.title.copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? AppColors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Aquí solo se listarán las reservas reales de tus clientes o las estancias que registres manualmente en tu parqueadero.',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.body.copyWith(
+                              color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          PillButton(
+                            text: '+ Agendar reserva manual',
+                            variant: PillButtonVariant.primary,
+                            onPressed: () => _showAddReservationModal(context, isDark),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                  index: 5,
                 )
               else
                 for (int i = 0; i < filteredItems.length; i++) ...[
@@ -1437,160 +1669,272 @@ class _OwnerReservationsScreenState extends ConsumerState<OwnerReservationsScree
     final plateCtrl = TextEditingController();
     final driverCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
-    String spot = 'Cupo A-02';
+    final availableSpaces = ref.read(parkingSpacesProvider);
+    final spotOptions = availableSpaces.isNotEmpty
+        ? availableSpaces.map((s) => 'Cupo ${s.spaceNumber}').toList()
+        : ['Cupo A-01', 'Cupo A-02', 'Cupo B-01'];
+    String spot = spotOptions.first;
     String vehicleType = 'Sedán';
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+        builder: (modalContext, setModalState) => Container(
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            top: 20,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom + MediaQuery.of(modalContext).padding.bottom + 24,
           ),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkCard : AppColors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                TwoToneTitle(
+                  text: 'Agendar nueva ',
+                  highlightText: 'reserva',
+                  normalColor: isDark ? AppColors.white : AppColors.darkCard,
+                  highlightColor: AppColors.primary,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Registra un cupo reservado por llamada o anticipado para el garaje.',
+                  style: AppTypography.caption.copyWith(color: isDark ? Colors.white.withAlpha(220) : AppColors.darkCard),
+                ),
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: plateCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard),
+                  decoration: InputDecoration(
+                    labelText: 'Placa (ej: XYZ-992)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                    filled: true,
+                    fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.pin_rounded, color: AppColors.secondary),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: driverCtrl,
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard),
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del Conductor',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                    filled: true,
+                    fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.secondary),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard),
+                  decoration: InputDecoration(
+                    labelText: 'Teléfono de contacto',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                    filled: true,
+                    fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.secondary),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: spot,
+                        dropdownColor: isDark ? AppColors.darkSurface : AppColors.white,
+                        style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard, fontSize: 13.5),
+                        items: [
+                          for (final opt in spotOptions)
+                            DropdownMenuItem(value: opt, child: Text(opt)),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setModalState(() => spot = val);
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Bahía',
+                          labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                          filled: true,
+                          fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: vehicleType,
+                        dropdownColor: isDark ? AppColors.darkSurface : AppColors.white,
+                        style: TextStyle(color: isDark ? Colors.white : AppColors.darkCard, fontSize: 13.5),
+                        items: const [
+                          DropdownMenuItem(value: 'Sedán', child: Text('Sedán')),
+                          DropdownMenuItem(value: 'Camioneta', child: Text('Camioneta')),
+                          DropdownMenuItem(value: 'Moto', child: Text('Moto')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setModalState(() => vehicleType = val);
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Tipo',
+                          labelStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                          filled: true,
+                          fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                PillButton(
+                  text: 'Confirmar y Guardar Reserva',
+                  variant: PillButtonVariant.primary,
+                  onPressed: () {
+                    final plate = plateCtrl.text.trim();
+                    final driver = driverCtrl.text.trim();
+                    if (plate.isEmpty || driver.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Por favor completa placa y nombre del conductor')),
+                      );
+                      return;
+                    }
+
+                    ref.read(ownerCalendarProvider.notifier).addReservation(
+                          plate: plate,
+                          driver: driver,
+                          spot: spot,
+                          timeRange: 'Próxima llegada hoy',
+                          amount: 5600.0,
+                          vehicleType: vehicleType,
+                          date: DateTime.now(),
+                          phone: phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
+                        );
+
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✓ Reserva para $driver ($plate) agendada en $spot.'),
+                        backgroundColor: const Color(0xFF2E7D32),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showScanQrDialog(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(ctx).padding.bottom + 24,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              ),
-              const SizedBox(height: 18),
-              const TwoToneTitle(text: 'Agendar nueva ', highlightText: 'reserva'),
-              const SizedBox(height: 8),
-              Text(
-                'Registra un cupo reservado por llamada o anticipado para el garaje.',
-                style: AppTypography.caption.copyWith(color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
-              ),
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: plateCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  labelText: 'Placa (ej: XYZ-992)',
-                  filled: true,
-                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  prefixIcon: const Icon(Icons.pin_rounded, color: AppColors.secondary),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: driverCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Nombre del Conductor',
-                  filled: true,
-                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.secondary),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  labelText: 'Teléfono de contacto',
-                  filled: true,
-                  fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.secondary),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: spot,
-                      items: const [
-                        DropdownMenuItem(value: 'Cupo A-02', child: Text('Cupo A-02')),
-                        DropdownMenuItem(value: 'Cupo A-04', child: Text('Cupo A-04')),
-                        DropdownMenuItem(value: 'Cupo B-02', child: Text('Cupo B-02')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setModalState(() => spot = val);
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Bahía',
-                        filled: true,
-                        fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: vehicleType,
-                      items: const [
-                        DropdownMenuItem(value: 'Sedán', child: Text('Sedán')),
-                        DropdownMenuItem(value: 'Camioneta', child: Text('Camioneta')),
-                        DropdownMenuItem(value: 'Moto', child: Text('Moto')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setModalState(() => vehicleType = val);
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Tipo',
-                        filled: true,
-                        fillColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                      ),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 20),
-
+              TwoToneTitle(
+                text: 'Escanear pase ',
+                highlightText: 'QR',
+                normalColor: isDark ? AppColors.white : AppColors.darkCard,
+                highlightColor: AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Apunta la cámara al pase QR del conductor para verificar su estancia y liquidar el cobro en taquilla.',
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: isDark ? Colors.white.withAlpha(220) : AppColors.darkCard,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : AppColors.darkCard,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.secondary, width: 2),
+                ),
+                child: const Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(Icons.qr_code_scanner_rounded, size: 70, color: AppColors.secondary),
+                    Positioned(
+                      bottom: 12,
+                      child: Text(
+                        'Visor de Cámara',
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               PillButton(
-                text: 'Confirmar y Guardar Reserva',
-                variant: PillButtonVariant.primary,
+                text: 'Validar y registrar cobro en taquilla',
+                variant: isDark ? PillButtonVariant.primary : PillButtonVariant.dark,
                 onPressed: () {
-                  final plate = plateCtrl.text.trim();
-                  final driver = driverCtrl.text.trim();
-                  if (plate.isEmpty || driver.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Por favor completa placa y nombre del conductor')),
-                    );
-                    return;
-                  }
-
-                  ref.read(ownerCalendarProvider.notifier).addReservation(
-                        plate: plate,
-                        driver: driver,
-                        spot: spot,
-                        timeRange: 'Próxima llegada hoy',
-                        amount: 5600.0,
-                        vehicleType: vehicleType,
-                        date: DateTime.now(),
-                        phone: phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
-                      );
-
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('✓ Reserva para $driver ($plate) agendada en $spot.'),
-                      backgroundColor: const Color(0xFF2E7D32),
+                    const SnackBar(
+                      content: Text('✓ Pase QR verificado. Cobro registrado exitosamente en taquilla.'),
+                      backgroundColor: Color(0xFF2E7D32),
                     ),
                   );
                 },
@@ -1598,80 +1942,6 @@ class _OwnerReservationsScreenState extends ConsumerState<OwnerReservationsScree
               const SizedBox(height: 8),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showScanQrDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const TwoToneTitle(text: 'Escanear pase ', highlightText: 'QR'),
-            const SizedBox(height: 8),
-            Text(
-              'Apunta la cámara al pase QR del conductor para verificar su estancia y liquidar el cobro en taquilla.',
-              textAlign: TextAlign.center,
-              style: AppTypography.body.copyWith(color: AppColors.textSecondaryLight),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.secondary, width: 2),
-              ),
-              child: const Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(Icons.qr_code_scanner_rounded, size: 70, color: AppColors.secondary),
-                  Positioned(
-                    bottom: 12,
-                    child: Text(
-                      'Visor de Cámara',
-                      style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            PillButton(
-              text: 'Validar y registrar cobro en taquilla',
-              variant: PillButtonVariant.dark,
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('✓ Pase QR verificado. Cobro registrado exitosamente en taquilla.'),
-                    backgroundColor: Color(0xFF2E7D32),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
         ),
       ),
     );

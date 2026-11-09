@@ -480,32 +480,71 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
   }
 
   void _showQrModal(BuildContext context, String code) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.lightBackground,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(28.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
-            Text('Código de Acceso', style: AppTypography.title),
-            const SizedBox(height: 8),
-            Text('Presenta este código en la entrada o talanquera', style: AppTypography.body),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(24)),
-              child: const Icon(Icons.qr_code_2_rounded, size: 160, color: AppColors.darkCard),
-            ),
-            const SizedBox(height: 16),
-            Text('ID: $code', style: AppTypography.bodyBold),
-            const SizedBox(height: 20),
-          ],
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(28, 16, 28, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black26,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Código de Acceso',
+                style: AppTypography.title.copyWith(
+                  color: isDark ? AppColors.white : AppColors.darkCard,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Presenta este código en la entrada o talanquera',
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: AppColors.secondary.withAlpha(100),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.qr_code_2_rounded,
+                  size: 160,
+                  color: AppColors.darkCard,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'ID: $code',
+                style: AppTypography.bodyBold.copyWith(
+                  color: isDark ? AppColors.white : AppColors.darkCard,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );

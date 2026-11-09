@@ -31,6 +31,7 @@ class AppMap extends StatefulWidget {
   static void showLandmarkDetails(BuildContext context, Landmark landmark) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => LandmarkDetailsSheet(landmark: landmark),
@@ -40,6 +41,7 @@ class AppMap extends StatefulWidget {
   static void showParkingDetails(BuildContext context, PastoParkingLot lot) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => ParkingLotDetailsSheet(lot: lot),
@@ -311,8 +313,11 @@ class _AppMapState extends State<AppMap> with SingleTickerProviderStateMixin {
               urlTemplate: EnvConfig.osmTileUrl,
               userAgentPackageName: 'com.parkingapp',
             ),
-            MarkerLayer(
-              markers: _buildMarkers(context),
+            ValueListenableBuilder<int>(
+              valueListenable: PastoDataService.customLotsListenable,
+              builder: (context, customLotsVersion, _) => MarkerLayer(
+                markers: _buildMarkers(context),
+              ),
             ),
             RichAttributionWidget(
               attributions: [
@@ -483,12 +488,15 @@ class LandmarkDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isMall = landmark.category == LandmarkCategory.shoppingMall;
+    final textColor = isDark ? AppColors.white : const Color(0xFF0F172A);
+    final subColor = isDark ? Colors.white70 : AppColors.textSecondaryLight;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: SafeArea(
@@ -504,7 +512,7 @@ class LandmarkDetailsSheet extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD1D1D6),
+                    color: isDark ? Colors.white24 : const Color(0xFFD1D1D6),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -527,7 +535,9 @@ class LandmarkDetailsSheet extends StatelessWidget {
                     ),
                     child: Icon(
                       landmark.icon,
-                      color: isMall ? AppColors.darkCard : const Color(0xFFFF3B30),
+                      color: isMall
+                          ? (isDark ? AppColors.secondary : AppColors.darkCard)
+                          : const Color(0xFFFF3B30),
                       size: 26,
                     ),
                   ),
@@ -539,7 +549,9 @@ class LandmarkDetailsSheet extends StatelessWidget {
                         StatusPill(
                           text: landmark.badgeText,
                           backgroundColor: isMall ? AppColors.secondary.withAlpha(60) : const Color(0xFFFFECEB),
-                          textColor: isMall ? AppColors.darkCard : const Color(0xFFFF3B30),
+                          textColor: isMall
+                              ? (isDark ? AppColors.secondary : AppColors.darkCard)
+                              : const Color(0xFFFF3B30),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -547,12 +559,12 @@ class LandmarkDetailsSheet extends StatelessWidget {
                           style: AppTypography.title.copyWith(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
+                            color: textColor,
                           ),
                         ),
                         Text(
                           landmark.address,
-                          style: AppTypography.caption.copyWith(color: AppColors.textSecondaryLight),
+                          style: AppTypography.caption.copyWith(color: subColor),
                         ),
                       ],
                     ),
@@ -562,7 +574,10 @@ class LandmarkDetailsSheet extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 landmark.description,
-                style: AppTypography.caption.copyWith(fontSize: 12, color: Colors.black87),
+                style: AppTypography.caption.copyWith(
+                  fontSize: 12,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
               ),
               const SizedBox(height: 18),
 
@@ -575,21 +590,21 @@ class LandmarkDetailsSheet extends StatelessWidget {
                     style: AppTypography.caption.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.6,
-                      color: AppColors.textSecondaryLight,
+                      color: subColor,
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF2F2F7),
+                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       '${landmark.nearbyParkingLots.length} disponibles',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1C1C1E),
+                        color: textColor,
                       ),
                     ),
                   ),
@@ -619,13 +634,20 @@ class NearbyParkingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.white : const Color(0xFF0F172A);
+    final subColor = isDark ? Colors.white70 : AppColors.textSecondaryLight;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F9FB),
+        color: isDark ? const Color(0xFF252528) : const Color(0xFFF9F9FB),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x14000000), width: 0.8),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0x14000000),
+          width: 0.8,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,6 +660,7 @@ class NearbyParkingCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.darkCard,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.secondary.withAlpha(80)),
                 ),
                 alignment: Alignment.center,
                 child: const Text(
@@ -658,16 +681,16 @@ class NearbyParkingCard extends StatelessWidget {
                       lot.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: AppTypography.fontFamily,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
+                        color: textColor,
                       ),
                     ),
                     Text(
                       lot.address,
-                      style: AppTypography.caption.copyWith(fontSize: 11, color: AppColors.textSecondaryLight),
+                      style: AppTypography.caption.copyWith(fontSize: 11, color: subColor),
                     ),
                   ],
                 ),
@@ -677,10 +700,10 @@ class NearbyParkingCard extends StatelessWidget {
                 children: [
                   Text(
                     lot.formattedPrice,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
-                      color: Color(0xFF1C1C1E),
+                      color: isDark ? AppColors.secondary : const Color(0xFF1C1C1E),
                     ),
                   ),
                   Container(
@@ -717,16 +740,23 @@ class NearbyParkingCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black12, width: 0.6),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.black12,
+                      width: 0.6,
+                    ),
                   ),
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
                       '🚗 ${lot.carSpaces} carros • 🛵 ${lot.motoSpaces} motos',
-                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF3A3A3C)),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : const Color(0xFF3A3A3C),
+                      ),
                     ),
                   ),
                 ),
@@ -782,10 +812,14 @@ class ParkingLotDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.white : const Color(0xFF0F172A);
+    final subColor = isDark ? Colors.white70 : AppColors.textSecondaryLight;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: SafeArea(
@@ -800,7 +834,7 @@ class ParkingLotDetailsSheet extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD1D1D6),
+                    color: isDark ? Colors.white24 : const Color(0xFFD1D1D6),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -839,7 +873,14 @@ class ParkingLotDetailsSheet extends StatelessWidget {
                               textColor: Color(0xFF2E7D32),
                             ),
                             const SizedBox(width: 6),
-                            Text('★ ${lot.rating}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11)),
+                            Text(
+                              '★ ${lot.rating}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                                color: textColor,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -848,10 +889,13 @@ class ParkingLotDetailsSheet extends StatelessWidget {
                           style: AppTypography.title.copyWith(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
+                            color: textColor,
                           ),
                         ),
-                        Text('${lot.address} • San Juan de Pasto', style: AppTypography.caption.copyWith(color: AppColors.textSecondaryLight)),
+                        Text(
+                          '${lot.address} • San Juan de Pasto',
+                          style: AppTypography.caption.copyWith(color: subColor),
+                        ),
                       ],
                     ),
                   ),
@@ -861,7 +905,7 @@ class ParkingLotDetailsSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF2F2F7),
+                  color: isDark ? const Color(0xFF252528) : const Color(0xFFF2F2F7),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -869,22 +913,46 @@ class ParkingLotDetailsSheet extends StatelessWidget {
                   children: [
                     Column(
                       children: [
-                        Text(lot.formattedPrice, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1C1C1E))),
-                        const Text('Tarifa por hora', style: TextStyle(fontSize: 10, color: Color(0xFF8E8E93))),
+                        Text(
+                          lot.formattedPrice,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: isDark ? AppColors.secondary : const Color(0xFF1C1C1E),
+                          ),
+                        ),
+                        Text('Tarifa por hora', style: TextStyle(fontSize: 10, color: subColor)),
                       ],
                     ),
-                    Container(width: 1, height: 26, color: Colors.black12),
+                    Container(width: 1, height: 26, color: isDark ? Colors.white12 : Colors.black12),
                     Column(
                       children: [
-                        Text('${lot.totalSpaces} cupos', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1C1C1E))),
-                        Text('${lot.carSpaces} carros • ${lot.motoSpaces} motos', style: const TextStyle(fontSize: 10, color: Color(0xFF8E8E93))),
+                        Text(
+                          '${lot.totalSpaces} cupos',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: textColor,
+                          ),
+                        ),
+                        Text(
+                          '${lot.carSpaces} carros • ${lot.motoSpaces} motos',
+                          style: TextStyle(fontSize: 10, color: subColor),
+                        ),
                       ],
                     ),
-                    Container(width: 1, height: 26, color: Colors.black12),
+                    Container(width: 1, height: 26, color: isDark ? Colors.white12 : Colors.black12),
                     Column(
                       children: [
-                        Text('${lot.distanceMeters} m', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1C1C1E))),
-                        const Text('Distancia a pie', style: TextStyle(fontSize: 10, color: Color(0xFF8E8E93))),
+                        Text(
+                          '${lot.distanceMeters} m',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: textColor,
+                          ),
+                        ),
+                        Text('Distancia a pie', style: TextStyle(fontSize: 10, color: subColor)),
                       ],
                     ),
                   ],
@@ -893,8 +961,8 @@ class ParkingLotDetailsSheet extends StatelessWidget {
               const SizedBox(height: 16),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.darkCard,
-                  foregroundColor: Colors.white,
+                  backgroundColor: isDark ? AppColors.primary : AppColors.darkCard,
+                  foregroundColor: isDark ? AppColors.darkCard : Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   minimumSize: const Size(double.infinity, 48),
@@ -904,7 +972,10 @@ class ParkingLotDetailsSheet extends StatelessWidget {
                   Navigator.pop(context);
                   context.push('/parking/${lot.id}');
                 },
-                child: const Text('Reservar cupo en este parqueadero  →', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'Reservar cupo en este parqueadero  →',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
               ),
               const SizedBox(height: 8),
             ],

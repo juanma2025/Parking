@@ -5,7 +5,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/motion_utils.dart';
 import '../../data/datasources/pasto_landmarks_data.dart';
+import '../owner/calendar_provider.dart';
+import '../profile/user_profile_provider.dart';
 import '../reservations/reservations_provider.dart';
+import '../vehicles/vehicles_provider.dart';
 import '../shared/app_card.dart';
 import '../shared/app_drawer.dart';
 import '../shared/avatar_button.dart';
@@ -357,6 +360,37 @@ class _ReserveScreenState extends ConsumerState<ReserveScreen> {
                     hours: _selectedHours,
                     formattedTotal: formattedTotal,
                   );
+
+                  final userProfile = ref.read(userProfileProvider);
+                  final vehicles = ref.read(userVehiclesProvider);
+                  final primaryVehicle = vehicles.isNotEmpty
+                      ? vehicles.firstWhere(
+                          (v) => v.isPrimary,
+                          orElse: () => vehicles.first,
+                        )
+                      : null;
+
+                  final now = DateTime.now();
+                  final endTime = now.add(Duration(hours: _selectedHours));
+                  String fmtTime(DateTime dt) {
+                    final h = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+                    final m = dt.minute.toString().padLeft(2, '0');
+                    final p = dt.hour >= 12 ? 'PM' : 'AM';
+                    return '$h:$m $p';
+                  }
+
+                  ref.read(ownerCalendarProvider.notifier).addReservation(
+                    driver: userProfile.fullName.isNotEmpty
+                        ? userProfile.fullName
+                        : 'Conductor Registrado',
+                    plate: primaryVehicle?.plate ?? 'PAS-001',
+                    vehicleType: primaryVehicle?.vehicleType ?? 'Sedán',
+                    spot: 'A-01',
+                    timeRange: '${fmtTime(now)} - ${fmtTime(endTime)}',
+                    amount: total.toDouble(),
+                    date: now,
+                  );
+
                   context.go('/confirmation?lot=${lot.id}');
                 },
               ),

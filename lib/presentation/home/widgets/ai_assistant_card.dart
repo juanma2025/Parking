@@ -16,6 +16,7 @@ class AiAssistantCard extends StatelessWidget {
     MotionUtils.triggerHaptic(HapticType.mediumImpact);
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => AiChatbotSheet(initialPrompt: initialPrompt),

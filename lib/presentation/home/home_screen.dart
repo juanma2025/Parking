@@ -11,6 +11,7 @@ import '../../core/utils/motion_utils.dart';
 import '../../data/datasources/pasto_landmarks_data.dart';
 import '../../domain/entities/domain_entities.dart';
 import '../auth/auth_providers.dart';
+import '../owner/spaces_provider.dart';
 import '../profile/user_profile_provider.dart';
 import '../shared/animated_auth_actions.dart';
 import '../shared/app_card.dart';
@@ -71,7 +72,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    PastoDataService.customLotsListenable.addListener(_onCustomLotsChanged);
     _loadInitialData();
+  }
+
+  void _onCustomLotsChanged() {
+    if (!mounted) return;
+    setState(() {
+      _parkingLots = _mergeWithCustomLots(_parkingLots);
+    });
   }
 
   void _onScroll() {
@@ -84,10 +93,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    PastoDataService.customLotsListenable.removeListener(_onCustomLotsChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  List<Map<String, dynamic>> _mergeWithCustomLots(
+    List<Map<String, dynamic>> existing,
+  ) {
+    final customMaps = PastoDataService.getCustomParkingLots()
+        .map((p) => {
+              'id': p.id,
+              'name': p.name,
+              'address': p.address,
+              'price_per_hour': p.pricePerHour,
+              'car_spaces': p.carSpaces,
+              'moto_spaces': p.motoSpaces,
+              'distance': p.distanceMeters,
+            })
+        .toList();
+    if (customMaps.isEmpty) return existing;
+    final customIds = customMaps.map((m) => m['id']).toSet();
+    final filteredExisting =
+        existing.where((m) => !customIds.contains(m['id'])).toList();
+    return [...customMaps, ...filteredExisting];
   }
 
   Future<void> _loadInitialData() async {
@@ -115,7 +146,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           .limit(10);
 
       if (response.isNotEmpty) {
-        _parkingLots = List<Map<String, dynamic>>.from(response);
+        _parkingLots = _mergeWithCustomLots(
+          List<Map<String, dynamic>>.from(response),
+        );
       } else {
         _parkingLots = _getPastoDefaultParkingLots();
       }
@@ -210,7 +243,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Widget _buildThemeToggleButton(ThemeMode themeMode, bool isDark) {
+  Widget _buildThemeToggleButton(
+    ThemeMode themeMode,
+    bool isDark, {
+    bool compact = false,
+  }) {
     IconData icon;
     String tooltip;
     if (themeMode == ThemeMode.system) {
@@ -225,6 +262,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return MotionUtils.pressable(
+      key: const Key('home_theme_toggle_button'),
       onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
       haptic: HapticType.selectionClick,
       semanticLabel: tooltip,
@@ -232,19 +270,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Tooltip(
         message: tooltip,
         child: Container(
-          constraints: const BoxConstraints(
-            minWidth: DesignTokens.minTouchTarget,
+          constraints: BoxConstraints(
+            minWidth: compact ? 36.0 : DesignTokens.minTouchTarget,
             minHeight: DesignTokens.minTouchTarget,
           ),
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: DesignTokens.surfaceElevated(isDark),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: DesignTokens.outline(isDark),
-              width: 1,
-            ),
-          ),
+          decoration: compact
+              ? null
+              : BoxDecoration(
+                  color: DesignTokens.surfaceElevated(isDark),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: DesignTokens.outline(isDark),
+                    width: 1,
+                  ),
+                ),
           child: Icon(
             icon,
             size: 18,
@@ -271,6 +311,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final userProfile = ref.watch(userProfileProvider);
+    // Sincroniza en tiempo real los parqueaderos creados por propietarios
+    ref.watch(driverParkingLotsCatalogProvider);
 
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(
@@ -500,9 +542,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(width: 12),
 
-            // Derecha: TextButton discreto "Iniciar sesión" + único botón primario "Registro"
-            const Flexible(
-              child: AnimatedAuthActions(),
+            // Derecha: Botón secundario de tema (Dark/Light) + TextButton discreto "Iniciar sesión" + botón primario "Registro"
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _buildThemeToggleButton(themeMode, isDark, compact: true),
+                  const SizedBox(width: 6),
+                  const Flexible(
+                    child: AnimatedAuthActions(),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -1312,6 +1364,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
         child: Padding(

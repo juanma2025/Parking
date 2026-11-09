@@ -598,174 +598,177 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
-      backgroundColor: isDark ? AppColors.darkCard : AppColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (modalCtx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black26,
-                      borderRadius: BorderRadius.circular(2),
+        builder: (modalCtx, setModalState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black26,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Editar Vehículo',
-                  style: AppTypography.title.copyWith(
-                    color: isDark ? AppColors.white : AppColors.darkCard,
-                    fontSize: 20,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Modifica los datos de tu vehículo registrado.',
-                  style: AppTypography.caption.copyWith(
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                AppTextField(
-                  label: 'Número de Placa',
-                  controller: plateCtrl,
-                  hintText: 'ABC · 123',
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Marca',
-                        controller: brandCtrl,
-                        hintText: 'Mazda',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Modelo',
-                        controller: modelCtrl,
-                        hintText: '3 Touring',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Año',
-                        controller: yearCtrl,
-                        hintText: '2023',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Color',
-                        controller: colorCtrl,
-                        hintText: 'Gris Titanio',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Tipo de Vehículo',
-                  style: AppTypography.caption.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.white : AppColors.darkCard,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: ['Sedán', 'Camioneta SUV', 'Motocicleta'].map((type) {
-                    final isSel = selectedType == type;
-                    return ChoiceChip(
-                      label: Text(type),
-                      selected: isSel,
-                      selectedColor: AppColors.secondary,
-                      backgroundColor: isDark ? const Color(0xFF2C2C2C) : AppColors.white,
-                      labelStyle: TextStyle(
-                        color: isSel
-                            ? AppColors.darkCard
-                            : (isDark ? AppColors.white : AppColors.darkCard),
-                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                      ),
-                      onSelected: (val) {
-                        if (val) setModalState(() => selectedType = type);
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Vehículo principal',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 18),
+                  Text(
+                    'Editar Vehículo',
+                    style: AppTypography.title.copyWith(
                       color: isDark ? AppColors.white : AppColors.darkCard,
+                      fontSize: 20,
                     ),
                   ),
-                  subtitle: Text(
-                    'Se seleccionará por defecto al reservar cupos.',
-                    style: TextStyle(
-                      fontSize: 12,
+                  const SizedBox(height: 6),
+                  Text(
+                    'Modifica los datos de tu vehículo registrado.',
+                    style: AppTypography.caption.copyWith(
                       color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
                     ),
                   ),
-                  value: isPrimary,
-                  activeThumbColor: AppColors.secondary,
-                  onChanged: (val) => setModalState(() => isPrimary = val),
-                ),
-                const SizedBox(height: 20),
-                PillButton(
-                  text: 'Guardar Cambios',
-                  variant: PillButtonVariant.primary,
-                  onPressed: () {
-                    final updated = vehicle.copyWith(
-                      plate: plateCtrl.text.trim().toUpperCase(),
-                      brand: brandCtrl.text.trim(),
-                      model: modelCtrl.text.trim(),
-                      year: yearCtrl.text.trim(),
-                      color: colorCtrl.text.trim(),
-                      vehicleType: selectedType,
-                      isPrimary: isPrimary,
-                    );
-                    ref.read(userVehiclesProvider.notifier).updateVehicle(updated);
-                    Navigator.of(modalCtx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: AppColors.darkCard,
-                        content: Text(
-                          'Vehículo ${updated.plate} actualizado exitosamente.',
-                          style: const TextStyle(color: AppColors.white),
+                  const SizedBox(height: 20),
+                  AppTextField(
+                    label: 'Número de Placa',
+                    controller: plateCtrl,
+                    hintText: 'ABC · 123',
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Marca',
+                          controller: brandCtrl,
+                          hintText: 'Mazda',
                         ),
                       ),
-                    );
-                  },
-                ),
-              ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Modelo',
+                          controller: modelCtrl,
+                          hintText: '3 Touring',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Año',
+                          controller: yearCtrl,
+                          hintText: '2023',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Color',
+                          controller: colorCtrl,
+                          hintText: 'Gris Titanio',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Tipo de Vehículo',
+                    style: AppTypography.caption.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.white : AppColors.darkCard,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: ['Sedán', 'Camioneta SUV', 'Motocicleta'].map((type) {
+                      final isSel = selectedType == type;
+                      return ChoiceChip(
+                        label: Text(type),
+                        selected: isSel,
+                        selectedColor: AppColors.secondary,
+                        backgroundColor: isDark ? const Color(0xFF2C2C2C) : AppColors.white,
+                        labelStyle: TextStyle(
+                          color: isSel
+                              ? AppColors.darkCard
+                              : (isDark ? AppColors.white : AppColors.darkCard),
+                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        onSelected: (val) {
+                          if (val) setModalState(() => selectedType = type);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Vehículo principal',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.white : AppColors.darkCard,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Se seleccionará por defecto al reservar cupos.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                      ),
+                    ),
+                    value: isPrimary,
+                    activeThumbColor: AppColors.secondary,
+                    onChanged: (val) => setModalState(() => isPrimary = val),
+                  ),
+                  const SizedBox(height: 20),
+                  PillButton(
+                    text: 'Guardar Cambios',
+                    variant: PillButtonVariant.primary,
+                    onPressed: () {
+                      final updated = vehicle.copyWith(
+                        plate: plateCtrl.text.trim().toUpperCase(),
+                        brand: brandCtrl.text.trim(),
+                        model: modelCtrl.text.trim(),
+                        year: yearCtrl.text.trim(),
+                        color: colorCtrl.text.trim(),
+                        vehicleType: selectedType,
+                        isPrimary: isPrimary,
+                      );
+                      ref.read(userVehiclesProvider.notifier).updateVehicle(updated);
+                      Navigator.of(modalCtx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: AppColors.darkCard,
+                          content: Text(
+                            'Vehículo ${updated.plate} actualizado exitosamente.',
+                            style: const TextStyle(color: AppColors.white),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -784,185 +787,188 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
-      backgroundColor: isDark ? AppColors.darkCard : AppColors.lightBackground,
+      backgroundColor: isDark ? AppColors.darkCard : AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (modalCtx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black26,
-                      borderRadius: BorderRadius.circular(2),
+        builder: (modalCtx, setModalState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black26,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Registrar Nuevo Vehículo',
-                  style: AppTypography.title.copyWith(
-                    color: isDark ? AppColors.white : AppColors.darkCard,
-                    fontSize: 20,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Ingresa los datos para registrar un vehículo en tu garaje.',
-                  style: AppTypography.caption.copyWith(
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                AppTextField(
-                  label: 'Número de Placa',
-                  controller: plateCtrl,
-                  hintText: 'Ej. MNQ · 567',
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Marca',
-                        controller: brandCtrl,
-                        hintText: 'Chevrolet',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Modelo',
-                        controller: modelCtrl,
-                        hintText: 'Onix Turbo',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Año',
-                        controller: yearCtrl,
-                        hintText: '2024',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: 'Color',
-                        controller: colorCtrl,
-                        hintText: 'Rojo Carmesí',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Tipo de Vehículo',
-                  style: AppTypography.caption.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.white : AppColors.darkCard,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: ['Sedán', 'Camioneta SUV', 'Motocicleta'].map((type) {
-                    final isSel = selectedType == type;
-                    return ChoiceChip(
-                      label: Text(type),
-                      selected: isSel,
-                      selectedColor: AppColors.secondary,
-                      backgroundColor: isDark ? const Color(0xFF2C2C2C) : AppColors.white,
-                      labelStyle: TextStyle(
-                        color: isSel
-                            ? AppColors.darkCard
-                            : (isDark ? AppColors.white : AppColors.darkCard),
-                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                      ),
-                      onSelected: (val) {
-                        if (val) setModalState(() => selectedType = type);
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Vehículo principal',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 18),
+                  Text(
+                    'Registrar Nuevo Vehículo',
+                    style: AppTypography.title.copyWith(
                       color: isDark ? AppColors.white : AppColors.darkCard,
+                      fontSize: 20,
                     ),
                   ),
-                  subtitle: Text(
-                    'Se seleccionará por defecto al reservar cupos.',
-                    style: TextStyle(
-                      fontSize: 12,
+                  const SizedBox(height: 6),
+                  Text(
+                    'Ingresa los datos para registrar un vehículo en tu garaje.',
+                    style: AppTypography.caption.copyWith(
                       color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
                     ),
                   ),
-                  value: isPrimary,
-                  activeThumbColor: AppColors.secondary,
-                  onChanged: (val) => setModalState(() => isPrimary = val),
-                ),
-                const SizedBox(height: 20),
-                PillButton(
-                  text: 'Registrar Vehículo',
-                  variant: PillButtonVariant.primary,
-                  onPressed: () {
-                    final plate = plateCtrl.text.trim().toUpperCase();
-                    if (plate.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Por favor ingresa la placa.')),
-                      );
-                      return;
-                    }
-
-                    final newVehicle = UserVehicleItem(
-                      id: 'veh-${DateTime.now().millisecondsSinceEpoch}',
-                      plate: plate,
-                      brand: brandCtrl.text.trim().isEmpty ? 'Vehículo' : brandCtrl.text.trim(),
-                      model: modelCtrl.text.trim(),
-                      year: yearCtrl.text.trim().isEmpty ? '2024' : yearCtrl.text.trim(),
-                      color: colorCtrl.text.trim().isEmpty ? 'Estándar' : colorCtrl.text.trim(),
-                      vehicleType: selectedType,
-                      isPrimary: isPrimary,
-                      badges: const ['SOAT al día'],
-                    );
-
-                    ref.read(userVehiclesProvider.notifier).addVehicle(newVehicle);
-                    Navigator.of(modalCtx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: AppColors.darkCard,
-                        content: Text(
-                          '¡Vehículo $plate registrado exitosamente!',
-                          style: const TextStyle(color: AppColors.white),
+                  const SizedBox(height: 20),
+                  AppTextField(
+                    label: 'Número de Placa',
+                    controller: plateCtrl,
+                    hintText: 'Ej. MNQ · 567',
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Marca',
+                          controller: brandCtrl,
+                          hintText: 'Chevrolet',
                         ),
                       ),
-                    );
-                  },
-                ),
-              ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Modelo',
+                          controller: modelCtrl,
+                          hintText: 'Onix Turbo',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Año',
+                          controller: yearCtrl,
+                          hintText: '2024',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: 'Color',
+                          controller: colorCtrl,
+                          hintText: 'Rojo Carmesí',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Tipo de Vehículo',
+                    style: AppTypography.caption.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.white : AppColors.darkCard,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: ['Sedán', 'Camioneta SUV', 'Motocicleta'].map((type) {
+                      final isSel = selectedType == type;
+                      return ChoiceChip(
+                        label: Text(type),
+                        selected: isSel,
+                        selectedColor: AppColors.secondary,
+                        backgroundColor: isDark ? const Color(0xFF2C2C2C) : AppColors.white,
+                        labelStyle: TextStyle(
+                          color: isSel
+                              ? AppColors.darkCard
+                              : (isDark ? AppColors.white : AppColors.darkCard),
+                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        onSelected: (val) {
+                          if (val) setModalState(() => selectedType = type);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Vehículo principal',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.white : AppColors.darkCard,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Se seleccionará por defecto al reservar cupos.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                      ),
+                    ),
+                    value: isPrimary,
+                    activeThumbColor: AppColors.secondary,
+                    onChanged: (val) => setModalState(() => isPrimary = val),
+                  ),
+                  const SizedBox(height: 20),
+                  PillButton(
+                    text: 'Registrar Vehículo',
+                    variant: PillButtonVariant.primary,
+                    onPressed: () {
+                      final plate = plateCtrl.text.trim().toUpperCase();
+                      if (plate.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Por favor ingresa la placa.')),
+                        );
+                        return;
+                      }
+
+                      final newVehicle = UserVehicleItem(
+                        id: 'veh-${DateTime.now().millisecondsSinceEpoch}',
+                        plate: plate,
+                        brand: brandCtrl.text.trim().isEmpty ? 'Vehículo' : brandCtrl.text.trim(),
+                        model: modelCtrl.text.trim(),
+                        year: yearCtrl.text.trim().isEmpty ? '2024' : yearCtrl.text.trim(),
+                        color: colorCtrl.text.trim().isEmpty ? 'Estándar' : colorCtrl.text.trim(),
+                        vehicleType: selectedType,
+                        isPrimary: isPrimary,
+                        badges: const ['SOAT al día'],
+                      );
+
+                      ref.read(userVehiclesProvider.notifier).addVehicle(newVehicle);
+                      Navigator.of(modalCtx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: AppColors.darkCard,
+                          content: Text(
+                            '¡Vehículo $plate registrado exitosamente!',
+                            style: const TextStyle(color: AppColors.white),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),

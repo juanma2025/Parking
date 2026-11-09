@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../domain/entities/user_role.dart';
+import '../owner/spaces_provider.dart';
 import 'auth_providers.dart';
 import '../shared/app_text_field.dart';
 import '../shared/pill_button.dart';
@@ -42,10 +43,25 @@ class _ParkingSetupScreenState extends ConsumerState<ParkingSetupScreen> {
   void _finishSetup() {
     final name = _nameController.text.trim();
     final address = _addressController.text.trim();
+    final openTime = _openTimeController.text.trim().isNotEmpty
+        ? _openTimeController.text.trim()
+        : '06:00 AM';
+    final closeTime = _closeTimeController.text.trim().isNotEmpty
+        ? _closeTimeController.text.trim()
+        : '10:00 PM';
+    final carSpaces = int.tryParse(_carSpacesController.text.trim()) ?? 0;
+    final motoSpaces = int.tryParse(_motoSpacesController.text.trim()) ?? 0;
 
     if (name.isEmpty || address.isEmpty) {
       setState(() {
         _errorMessage = 'Por favor ingresa el nombre y la ubicación de tu parqueadero.';
+      });
+      return;
+    }
+
+    if (carSpaces < 0 || motoSpaces < 0 || (carSpaces + motoSpaces) <= 0) {
+      setState(() {
+        _errorMessage = 'Ingresa al menos 1 espacio disponible (carros o motos).';
       });
       return;
     }
@@ -55,6 +71,17 @@ class _ParkingSetupScreenState extends ConsumerState<ParkingSetupScreen> {
       _errorMessage = null;
     });
 
+    // Guardar configuración real del parqueadero, generar espacios dinámicos LIBRES
+    // y publicar en el catálogo del Conductor (Mapa y Sugerencias)
+    ref.read(ownerParkingConfigProvider.notifier).configureParkingLot(
+          name: name,
+          address: address,
+          openTime: openTime,
+          closeTime: closeTime,
+          carSpaces: carSpaces,
+          motoSpaces: motoSpaces,
+        );
+
     // Save active role and parking preferences
     ref.read(userRoleStateProvider.notifier).setRole(UserRole.parkingOwner);
 
@@ -62,7 +89,7 @@ class _ParkingSetupScreenState extends ConsumerState<ParkingSetupScreen> {
       SnackBar(
         backgroundColor: AppColors.darkCard,
         content: Text(
-          '¡Parqueadero "$name" configurado con éxito! Bienvenido al panel de anfitrión.',
+          '¡Parqueadero "$name" configurado con ${carSpaces + motoSpaces} cupos libres!',
           style: const TextStyle(color: AppColors.white),
         ),
       ),
@@ -72,6 +99,12 @@ class _ParkingSetupScreenState extends ConsumerState<ParkingSetupScreen> {
   }
 
   void _skipSetup() {
+    final carSpaces = int.tryParse(_carSpacesController.text.trim()) ?? 4;
+    final motoSpaces = int.tryParse(_motoSpacesController.text.trim()) ?? 2;
+    ref.read(parkingSpacesProvider.notifier).configureSpaces(
+          carSpaces: carSpaces > 0 ? carSpaces : 4,
+          motoSpaces: motoSpaces >= 0 ? motoSpaces : 2,
+        );
     ref.read(userRoleStateProvider.notifier).setRole(UserRole.parkingOwner);
     context.go('/owner-summary');
   }

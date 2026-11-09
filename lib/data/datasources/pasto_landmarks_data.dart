@@ -486,10 +486,59 @@ class PastoDataService {
     ),
   ];
 
+  static final List<PastoParkingLot> _customParkingLots = [];
+  static final ValueNotifier<int> customLotsListenable = ValueNotifier<int>(0);
+
+  /// Registra o actualiza un parqueadero creado por un propietario en la sesión actual
+  static void registerCustomParkingLot(PastoParkingLot lot) {
+    final existingIndex = _customParkingLots.indexWhere((p) => p.id == lot.id);
+    if (existingIndex >= 0) {
+      _customParkingLots[existingIndex] = lot;
+    } else {
+      _customParkingLots.insert(0, lot);
+    }
+    customLotsListenable.value++;
+  }
+
+  static List<PastoParkingLot> getCustomParkingLots() =>
+      List.unmodifiable(_customParkingLots);
+
+  /// Infiere coordenadas realistas en San Juan de Pasto según la dirección o nombre
+  static ({double lat, double lng}) inferCoordinatesForAddress(
+    String name,
+    String address,
+  ) {
+    final combined = '$name $address'.toLowerCase();
+    if (combined.contains('unicentro') || combined.contains('panamericana')) {
+      return (lat: 1.216550, lng: -77.288200);
+    }
+    if (combined.contains('unico') || combined.contains('único')) {
+      return (lat: 1.205850, lng: -77.259000);
+    }
+    if (combined.contains('nova') || combined.contains('calle 19')) {
+      return (lat: 1.220890, lng: -77.281150);
+    }
+    if (combined.contains('belalcazar') || combined.contains('belalcázar')) {
+      return (lat: 1.215920, lng: -77.277820);
+    }
+    if (combined.contains('san pedro')) {
+      return (lat: 1.224750, lng: -77.291900);
+    }
+    if (combined.contains('infantil') || combined.contains('estudiantes')) {
+      return (lat: 1.223350, lng: -77.279900);
+    }
+    if (combined.contains('departamental') || combined.contains('hudn')) {
+      return (lat: 1.204850, lng: -77.268100);
+    }
+    // Centro de San Juan de Pasto por defecto
+    final offset = (_customParkingLots.length % 5) * 0.0006;
+    return (lat: 1.214800 + offset, lng: -77.279200 - offset);
+  }
+
   static List<Landmark> getLandmarks() => landmarks;
 
   static List<PastoParkingLot> getAllParkingLots() {
-    final List<PastoParkingLot> all = [];
+    final List<PastoParkingLot> all = [..._customParkingLots];
     for (final l in landmarks) {
       all.addAll(l.nearbyParkingLots);
     }
@@ -497,6 +546,9 @@ class PastoDataService {
   }
 
   static PastoParkingLot? getParkingLotById(String id) {
+    for (final custom in _customParkingLots) {
+      if (custom.id == id) return custom;
+    }
     for (final l in landmarks) {
       for (final p in l.nearbyParkingLots) {
         if (p.id == id) return p;
