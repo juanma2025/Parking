@@ -6,6 +6,7 @@ class EnvConfig {
   static final double mapDefaultLng = double.tryParse(const String.fromEnvironment('MAP_DEFAULT_LNG')) ?? -77.2811;
   static final double mapDefaultZoom = double.tryParse(const String.fromEnvironment('MAP_DEFAULT_ZOOM')) ?? 14.5;
   static const String deepLinkScheme = String.fromEnvironment('DEEP_LINK_SCHEME', defaultValue: 'parkingapp');
+  static const String geminiApiKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
 
   static void validate() {
     if (supabaseUrl.isEmpty) {

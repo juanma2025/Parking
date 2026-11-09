@@ -25,6 +25,7 @@ import '../shared/status_pill.dart';
 import '../shared/step_carousel.dart';
 import '../shared/two_tone_title.dart';
 import '../shared/zone_chip.dart';
+import 'widgets/ai_assistant_card.dart';
 import 'widgets/guest_map_explorer_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -1525,6 +1526,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         MotionUtils.staggerEntrance(
           _buildRecommendationsSection(isDark),
           index: 5,
+        ),
+        const SizedBox(height: 16),
+
+        // Compact AI Chatbot Card (Gemini API) below parking lot suggestions
+        MotionUtils.staggerEntrance(
+          const AiAssistantCard(),
+          index: 6,
         ),
         const SizedBox(height: 80),
       ],
